@@ -1,3 +1,9 @@
+mod config;
+mod models;
+mod utils;
+
+use crate::models::log_level::LogLevel;
+
 fn main() {
-    println!("Hello, world!");
+    utils::logger::log(LogLevel::Info, "服务启动成功");
 }
