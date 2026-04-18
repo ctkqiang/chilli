@@ -25,3 +25,20 @@ sysinfo = "0.31.4"
 listeners = "0.5.1"
 reqwest = { version = "0.11", features = ["json"] }
 kill_tree = "0.2"
+
+[dev-dependencies]
+tokio-test = "0.4"
+tower = { version = "0.4", features = ["util"] }
+http-body-util = "0.1"
+hyper = { version = "1.0", features = ["full"] }
+uuid = { version = "1.0", features = ["v4"] }
+futures = "0.3"
+serial_test = "3.0"
+
+[[test]]
+name = "integration_tests"
+path = "tests/integration/api_integration_test.rs"
+
+[[test]]
+name = "unit_tests"
+path = "tests/mod.rs"
