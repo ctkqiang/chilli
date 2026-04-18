@@ -9,9 +9,8 @@ use crate::core::get_github_advisories::sync_github_advisories;
 use crate::models::log_level::LogLevel;
 use crate::service::database;
 
-use axum::routing::get;
+use axum::routing::{get, post};
 use axum::Router;
-use std::fs;
 use tower_http::cors::CorsLayer;
 
 #[tokio::main]
@@ -71,5 +70,6 @@ fn routes() -> Router {
         .route("/", get(routes::system::get_index))
         .route("/health", get(routes::system::get_system_status))
         .route("/api/running", get(routes::processes::runnning_processes))
+        .route("/api/kill/:pid", post(routes::processes::kill_process))
         .layer(CorsLayer::permissive())
 }

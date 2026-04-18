@@ -228,12 +228,15 @@ pub async fn initialise_db() -> Result<DatabaseConnection, DbErr> {
         [crate::models::github_advisories::Entity,]
     );
 
+    let backend_name = match db.get_database_backend() {
+        sea_orm::DatabaseBackend::MySql => "MYSQL",
+        sea_orm::DatabaseBackend::Postgres => "POSTGRESQL",
+        sea_orm::DatabaseBackend::Sqlite => "SQLITE",
+    };
+
     utils::logger::log(
         LogLevel::Info,
-        &format!(
-            "数据库初始化完成 | 驱动程序: {:?}",
-            db.get_database_backend()
-        ),
+        &format!("数据库初始化完成 | 驱动程序: {}", backend_name),
     );
 
     Ok(db)

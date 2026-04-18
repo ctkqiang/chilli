@@ -24,3 +24,4 @@ once_cell = "1.19"
 sysinfo = "0.31.4"
 listeners = "0.5.1"
 reqwest = { version = "0.11", features = ["json"] }
+kill_tree = "0.2"
