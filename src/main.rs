@@ -1,6 +1,7 @@
 mod config;
 mod core;
 mod models;
+mod routes;
 mod service;
 mod utils;
 
@@ -8,11 +9,15 @@ use crate::core::get_github_advisories::sync_github_advisories;
 use crate::models::log_level::LogLevel;
 use crate::service::database;
 
+use axum::Router;
+use axum::routing::get;
 use std::fs;
 use std::time::Duration;
+use tower_http::cors::CorsLayer;
 
 #[tokio::main]
 async fn main() {
+    let app = routes();
     utils::logger::log(LogLevel::Info, "正在启动小辣椒服务...");
 
     let db = match database::initialise_db().await {
@@ -20,6 +25,7 @@ async fn main() {
             utils::logger::log(LogLevel::Info, "数据库连接成功");
             connection
         }
+
         Err(e) => {
             utils::logger::log(LogLevel::Error, &format!("数据库连接失败: {}", e));
             utils::logger::log(LogLevel::Info, "提示: 请确保 data 目录有写入权限");
@@ -28,8 +34,6 @@ async fn main() {
     };
 
     if should_sync() {
-        utils::logger::log(LogLevel::Info, "正在从 GitHub 获取最新的安全公告...");
-
         match sync_github_advisories(&db).await {
             Ok(_) => {
                 utils::logger::log(LogLevel::Info, "安全公告同步完成");
@@ -47,10 +51,30 @@ async fn main() {
     }
 
     utils::logger::log(LogLevel::Info, "小辣椒服务启动成功！");
+
+    let listener = tokio::net::TcpListener::bind(format!(
+        "{}:{}",
+        config::DEFAULT_SERVER_HOST,
+        config::DEFAULT_SERVER_PORT
+    ))
+    .await
+    .unwrap();
+
+    utils::logger::log(
+        LogLevel::Info,
+        &format!(
+            "服务器监听在 http://{}:{}",
+            config::DEFAULT_SERVER_HOST,
+            config::DEFAULT_SERVER_PORT
+        ),
+    );
+
+    axum::serve(listener, app).await.unwrap();
 }
 
 fn should_sync() -> bool {
     let sync_file = ".last_sync";
+
     if let Ok(metadata) = fs::metadata(sync_file) {
         if let Ok(last_run) = metadata.modified() {
             let one_day = Duration::from_secs(24 * 60 * 60);
@@ -62,4 +86,11 @@ fn should_sync() -> bool {
 
 fn update_last_sync_time() -> std::io::Result<()> {
     fs::write(".last_sync", "")
+}
+
+fn routes() -> Router {
+    Router::new()
+        .route("/", get(routes::system::get_index))
+        .route("/health", get(routes::system::get_system_status))
+        .layer(CorsLayer::permissive())
 }

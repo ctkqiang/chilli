@@ -1,0 +1,8 @@
+[tasks.dev]
+command = "cargo"
+args = ["watch", "-x", "run"]
+
+[tasks.web]
+cwd = "./portal"
+command = "bun"
+args = ["dev"]

@@ -1,5 +1,7 @@
 use crate::config::GITHUB_ADVISORIES_API_URL;
 use crate::models::github_advisories::{ActiveModel, Column, Entity as Advisory, Model};
+use crate::models::log_level::LogLevel;
+use crate::utils;
 use reqwest::header::{ACCEPT, USER_AGENT};
 use sea_orm::*;
 
@@ -21,6 +23,8 @@ pub async fn sync_github_advisories(
         .map(|m| m.into_active_model())
         .collect();
 
+    let count = active_models.len();
+
     Advisory::insert_many(active_models)
         .on_conflict(
             sea_query::OnConflict::column(Column::GhsaId)
@@ -29,6 +33,11 @@ pub async fn sync_github_advisories(
         )
         .exec(db)
         .await?;
+
+    utils::logger::log(
+        LogLevel::Debug,
+        &format!("成功同步{}条GitHub安全公告", count),
+    );
 
     Ok(())
 }
