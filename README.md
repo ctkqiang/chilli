@@ -66,7 +66,12 @@
 
 ```bash
 # 克隆仓库
-git clone https://github.com/yourusername/chilli.git
+git clone https://github.com/ctkqiang/chilli.git
+
+或
+
+git https://gitcode.com/ctkqiang_sr/chilli.git
+
 cd chilli
 
 # 编译发布版本
