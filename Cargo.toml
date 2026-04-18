@@ -19,3 +19,5 @@ sea-orm = { version = "0.12", features = [
     "macros",
 ] }
 serde_json = { version = "1.0", default-features = false, features = ["alloc"] }
+sysinfo = "0.31.4"
+listeners = "0.5.1"

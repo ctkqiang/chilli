@@ -92,5 +92,6 @@ fn routes() -> Router {
     Router::new()
         .route("/", get(routes::system::get_index))
         .route("/health", get(routes::system::get_system_status))
+        .route("/api/running", get(routes::processes::runnning_processes))
         .layer(CorsLayer::permissive())
 }
