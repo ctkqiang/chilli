@@ -3,6 +3,14 @@ name = "chilli"
 version = "0.0.1"
 edition = "2021"
 
+[lib]
+name = "chilli"
+path = "src/lib.rs"
+
+[[bin]]
+name = "chilli"
+path = "src/main.rs"
+
 [dependencies]
 axum = "0.7"
 tower-http = { version = "0.5", features = ["cors"] }
