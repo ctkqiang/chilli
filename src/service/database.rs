@@ -2,6 +2,10 @@ use sea_orm::{ConnectionTrait, Database, DatabaseConnection, DbErr, Schema};
 use std::env;
 use std::fs;
 
+use crate::config;
+use crate::models::log_level::LogLevel;
+use crate::utils;
+
 /**
  * 批量创建数据库表宏
  *
@@ -141,11 +145,10 @@ macro_rules! create_tables {
  * async fn main() {
  *     match initialise_db().await {
  *         Ok(db) => {
- *             println!("数据库连接成功!");
- *             // 使用 db 进行数据库操作...
+ *             utils::logger::log(LogLevel::Info, "数据库连接成功!");
  *         }
  *         Err(e) => {
- *             eprintln!("数据库初始化失败: {}", e);
+ *             utils::logger::log(LogLevel::Error, &format!("数据库初始化失败: {}", e));
  *             std::process::exit(1);
  *         }
  *     }
@@ -160,35 +163,35 @@ macro_rules! create_tables {
  */
 pub async fn initialise_db() -> Result<DatabaseConnection, DbErr> {
     let db_url = match (
-        env::var("POSTGRES_HOST"),
-        env::var("MYSQL_HOST"),
-        env::var("QUESTDB_HOST"),
+        config::get_env("POSTGRES_HOST"),
+        config::get_env("MYSQL_HOST"),
+        config::get_env("QUESTDB_HOST"),
     ) {
-        (Ok(host), _, _) => format!(
+        (Some(host), _, _) => format!(
             "postgres://{}:{}@{}:{}/{}",
-            env::var("POSTGRES_USER").unwrap_or_else(|_| "postgres".to_string()),
-            env::var("POSTGRES_PASSWORD").unwrap_or_default(),
+            config::get_env("POSTGRES_USER").unwrap_or_else(|| "postgres".to_string()),
+            config::get_env("POSTGRES_PASSWORD").unwrap_or_default(),
             host,
-            env::var("POSTGRES_PORT").unwrap_or_else(|_| "5432".to_string()),
-            env::var("POSTGRES_DATABASE").unwrap_or_else(|_| "chilli".to_string())
+            config::get_env("POSTGRES_PORT").unwrap_or_else(|| "5432".to_string()),
+            config::get_env("POSTGRES_DATABASE").unwrap_or_else(|| "chilli".to_string())
         ),
 
-        (_, Ok(host), _) => format!(
+        (_, Some(host), _) => format!(
             "mysql://{}:{}@{}:{}/{}",
-            env::var("MYSQL_USER").unwrap_or_else(|_| "root".to_string()),
-            env::var("MYSQL_PASSWORD").unwrap_or_default(),
+            config::get_env("MYSQL_USER").unwrap_or_else(|| "root".to_string()),
+            config::get_env("MYSQL_PASSWORD").unwrap_or_default(),
             host,
-            env::var("MYSQL_PORT").unwrap_or_else(|_| "3306".to_string()),
-            env::var("MYSQL_DATABASE").unwrap_or_else(|_| "chilli".to_string())
+            config::get_env("MYSQL_PORT").unwrap_or_else(|| "3306".to_string()),
+            config::get_env("MYSQL_DATABASE").unwrap_or_else(|| "chilli".to_string())
         ),
 
-        (_, _, Ok(host)) => format!(
+        (_, _, Some(host)) => format!(
             "postgres://{}:{}@{}:{}/{}",
-            env::var("QUESTDB_USER").unwrap_or_else(|_| "admin".to_string()),
-            env::var("QUESTDB_PASSWORD").unwrap_or_else(|_| "quest".to_string()),
+            config::get_env("QUESTDB_USER").unwrap_or_else(|| "admin".to_string()),
+            config::get_env("QUESTDB_PASSWORD").unwrap_or_else(|| "quest".to_string()),
             host,
-            env::var("QUESTDB_PORT").unwrap_or_else(|_| "8812".to_string()),
-            "qdb"
+            config::get_env("QUESTDB_PORT").unwrap_or_else(|| "8812".to_string()),
+            config::get_env("QUESTDB_DATABASE").unwrap_or_else(|| "qdb".to_string())
         ),
 
         _ => {
@@ -201,7 +204,11 @@ pub async fn initialise_db() -> Result<DatabaseConnection, DbErr> {
     let db_backend = db.get_database_backend();
 
     create_tables!(db, db_backend, [crate::models::github_advisories::Entity,]);
-    println!("数据库初始化完成 | 驱动程序: {:?}", db_backend);
+
+    utils::logger::log(
+        LogLevel::Info,
+        &format!("数据库初始化完成 | 驱动程序: {:?}", db_backend),
+    );
 
     Ok(db)
 }

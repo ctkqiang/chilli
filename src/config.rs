@@ -17,8 +17,8 @@ static ENV_CACHE: Lazy<HashMap<String, String>> = Lazy::new(|| {
     env::vars().collect()
 });
 
-pub fn get_env(key: &str) -> Option<&String> {
-    ENV_CACHE.get(key)
+pub fn get_env(key: &str) -> Option<String> {
+    ENV_CACHE.get(key).cloned()
 }
 
 #[derive(Serialize, Deserialize)]
