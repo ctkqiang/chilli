@@ -95,6 +95,7 @@ fn get_default_database_path() -> String {
     format!("sqlite:{}?mode=rwc", db_path)
 }
 
+#[allow(dead_code)]
 pub fn get_database_path() -> String {
     get_default_database_path()
 }

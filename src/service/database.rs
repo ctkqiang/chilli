@@ -1,5 +1,5 @@
+use sea_orm::Statement;
 use sea_orm::{ConnectionTrait, Database, DatabaseConnection, DbErr, Schema};
-use std::env;
 use std::fs;
 
 use crate::config;
@@ -162,52 +162,78 @@ macro_rules! create_tables {
  * - 连接字符串使用 `?mode=rwc` 确保SQLite可读写
  */
 pub async fn initialise_db() -> Result<DatabaseConnection, DbErr> {
-    let db_url = match (
+    let (host_opt, mysql_opt, quest_opt) = (
         config::get_env("POSTGRES_HOST"),
         config::get_env("MYSQL_HOST"),
         config::get_env("QUESTDB_HOST"),
-    ) {
+    );
+
+    let db_name = if host_opt.is_some() {
+        config::get_env("POSTGRES_DATABASE").unwrap_or_else(|| "chilli".to_string())
+    } else if mysql_opt.is_some() {
+        config::get_env("MYSQL_DATABASE").unwrap_or_else(|| "chilli".to_string())
+    } else if quest_opt.is_some() {
+        config::get_env("QUESTDB_DATABASE").unwrap_or_else(|| "qdb".to_string())
+    } else {
+        "chilli".to_string()
+    };
+
+    let base_url = match (&host_opt, &mysql_opt, &quest_opt) {
         (Some(host), _, _) => format!(
-            "postgres://{}:{}@{}:{}/{}",
+            "postgres://{}:{}@{}:{}",
             config::get_env("POSTGRES_USER").unwrap_or_else(|| "postgres".to_string()),
             config::get_env("POSTGRES_PASSWORD").unwrap_or_default(),
             host,
-            config::get_env("POSTGRES_PORT").unwrap_or_else(|| "5432".to_string()),
-            config::get_env("POSTGRES_DATABASE").unwrap_or_else(|| "chilli".to_string())
+            config::get_env("POSTGRES_PORT").unwrap_or_else(|| "5432".to_string())
         ),
-
         (_, Some(host), _) => format!(
-            "mysql://{}:{}@{}:{}/{}",
+            "mysql://{}:{}@{}:{}",
             config::get_env("MYSQL_USER").unwrap_or_else(|| "root".to_string()),
             config::get_env("MYSQL_PASSWORD").unwrap_or_default(),
             host,
-            config::get_env("MYSQL_PORT").unwrap_or_else(|| "3306".to_string()),
-            config::get_env("MYSQL_DATABASE").unwrap_or_else(|| "chilli".to_string())
+            config::get_env("MYSQL_PORT").unwrap_or_else(|| "3306".to_string())
         ),
-
         (_, _, Some(host)) => format!(
-            "postgres://{}:{}@{}:{}/{}",
+            "postgres://{}:{}@{}:{}",
             config::get_env("QUESTDB_USER").unwrap_or_else(|| "admin".to_string()),
             config::get_env("QUESTDB_PASSWORD").unwrap_or_else(|| "quest".to_string()),
             host,
-            config::get_env("QUESTDB_PORT").unwrap_or_else(|| "8812".to_string()),
-            config::get_env("QUESTDB_DATABASE").unwrap_or_else(|| "qdb".to_string())
+            config::get_env("QUESTDB_PORT").unwrap_or_else(|| "8812".to_string())
         ),
-
         _ => {
             let _ = fs::create_dir_all("./data");
-            "sqlite://./data/chilli.db?mode=rwc".to_string()
+            return Database::connect("sqlite://./data/chilli.db?mode=rwc").await;
         }
     };
 
-    let db = Database::connect(&db_url).await?;
+    let db = Database::connect(&base_url).await?;
     let db_backend = db.get_database_backend();
 
-    create_tables!(db, db_backend, [crate::models::github_advisories::Entity,]);
+    let create_sql = if db_backend == sea_orm::DatabaseBackend::MySql {
+        format!("CREATE DATABASE IF NOT EXISTS `{}`", db_name)
+    } else {
+        format!("CREATE DATABASE \"{}\"", db_name)
+    };
+
+    db.execute(Statement::from_string(db_backend, create_sql))
+        .await
+        .ok();
+
+    let full_url = format!("{}/{}", base_url, db_name);
+    let db = Database::connect(&full_url).await?;
+
+    create_tables!(
+        db,
+        db.get_database_backend(),
+        [crate::models::github_advisories::Entity,]
+    );
 
     utils::logger::log(
         LogLevel::Info,
-        &format!("数据库初始化完成 | 驱动程序: {:?}", db_backend),
+        &format!(
+            "数据库初始化完成 | 驱动程序: {:?}",
+            db.get_database_backend()
+        ),
     );
 
     Ok(db)

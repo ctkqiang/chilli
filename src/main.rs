@@ -9,10 +9,9 @@ use crate::core::get_github_advisories::sync_github_advisories;
 use crate::models::log_level::LogLevel;
 use crate::service::database;
 
-use axum::Router;
 use axum::routing::get;
+use axum::Router;
 use std::fs;
-use std::time::Duration;
 use tower_http::cors::CorsLayer;
 
 #[tokio::main]
@@ -33,21 +32,16 @@ async fn main() {
         }
     };
 
-    if should_sync() {
-        match sync_github_advisories(&db).await {
-            Ok(_) => {
-                utils::logger::log(LogLevel::Info, "安全公告同步完成");
-                let _ = update_last_sync_time();
-            }
-            Err(e) => {
-                utils::logger::log(
-                    LogLevel::Warn,
-                    &format!("GitHub 同步失败 (可能达到速率限制): {}", e),
-                );
-            }
+    match sync_github_advisories(&db).await {
+        Ok(_) => {
+            utils::logger::log(LogLevel::Info, "安全公告同步完成");
         }
-    } else {
-        utils::logger::log(LogLevel::Info, "本地数据尚新，跳过 GitHub 同步");
+        Err(e) => {
+            utils::logger::log(
+                LogLevel::Warn,
+                &format!("GitHub 同步失败 (可能达到速率限制): {}", e),
+            );
+        }
     }
 
     utils::logger::log(LogLevel::Info, "小辣椒服务启动成功！");
@@ -70,22 +64,6 @@ async fn main() {
     );
 
     axum::serve(listener, app).await.unwrap();
-}
-
-fn should_sync() -> bool {
-    let sync_file = ".last_sync";
-
-    if let Ok(metadata) = fs::metadata(sync_file) {
-        if let Ok(last_run) = metadata.modified() {
-            let one_day = Duration::from_secs(24 * 60 * 60);
-            return last_run.elapsed().unwrap_or(one_day) >= one_day;
-        }
-    }
-    true
-}
-
-fn update_last_sync_time() -> std::io::Result<()> {
-    fs::write(".last_sync", "")
 }
 
 fn routes() -> Router {
