@@ -4,6 +4,8 @@ use crate::utils;
 pub const APP_NAME: &str = "(小辣椒&chilli)";
 pub const APP_VERSION: &str = "v0.0.1";
 
+pub const GITHUB_ADVISORIES_API_URL: &str = "https://api.github.com/advisories";
+
 pub fn get_database_path() -> String {
     let db_path = "./data/chilli.db";
 
