@@ -1,12 +1,25 @@
 use crate::models::log_level::LogLevel;
 use crate::utils;
+use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+use std::env;
 
 pub const APP_NAME: &str = "(小辣椒&chilli)";
 pub const APP_VERSION: &str = "v0.0.1";
 pub const DEFAULT_SERVER_HOST: &str = "0.0.0.0";
 pub const DEFAULT_SERVER_PORT: u16 = 9333;
 pub const GITHUB_ADVISORIES_API_URL: &str = "https://api.github.com/advisories";
+
+#[allow(dead_code)]
+static ENV_CACHE: Lazy<HashMap<String, String>> = Lazy::new(|| {
+    dotenvy::dotenv().ok();
+    env::vars().collect()
+});
+
+pub fn get_env(key: &str) -> Option<&String> {
+    ENV_CACHE.get(key)
+}
 
 #[derive(Serialize, Deserialize)]
 pub struct Author {
