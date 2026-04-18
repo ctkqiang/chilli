@@ -114,13 +114,44 @@ pub mod github_fixtures {
 }
 
 /**
+ * 进程信息测试数据结构
+ *
+ * 在测试中使用的进程信息结构体定义。
+ * 与主项目中的ProcessInfo保持一致。
+ */
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct ProcessInfo {
+    pub pid: u32,
+    pub name: String,
+    pub cmdline: Vec<String>,
+    pub memory_bytes: u64,
+    pub start_time: String,
+    pub uptime_seconds: u64,
+    pub listening_ports: Vec<u16>,
+}
+
+/**
+ * 系统概览测试数据结构
+ *
+ * 在测试中使用的系统概览结构体定义。
+ * 与主项目中的SystemOverview保持一致。
+ */
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct SystemOverview {
+    pub processes: Vec<ProcessInfo>,
+    pub total_memory: u64,
+    pub used_memory: u64,
+    pub uptime_seconds: u64,
+}
+
+/**
  * 进程信息模拟数据
  *
  * 提供系统进程信息的测试数据。
  * 用于测试进程采集功能，避免依赖真实系统状态。
  */
 pub mod process_fixtures {
-    use crate::models::process_info::ProcessInfo;
+    use super::{ProcessInfo, SystemOverview};
 
     /**
      * 标准进程信息样本
@@ -146,8 +177,8 @@ pub mod process_fixtures {
      * 包含多个进程的完整系统状态，
      * 用于测试系统概览API的响应格式。
      */
-    pub fn sample_system_overview() -> crate::models::system_overview::SystemOverview {
-        crate::models::system_overview::SystemOverview {
+    pub fn sample_system_overview() -> SystemOverview {
+        SystemOverview {
             processes: vec![sample_process()],
             total_memory: 8589934592,
             used_memory: 4294967296,
