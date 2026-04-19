@@ -1,14 +1,7 @@
 import axios from 'axios';
-import { config } from 'dotenv';
-import { resolve } from 'path';
-
-const envPath = resolve(__dirname, '../../../.env');
-config({ path: envPath });
 
 const api = axios.create({
-  baseURL: process.env.CORE_PORT
-    ? `http://localhost:${process.env.CORE_PORT}/api`
-    : 'http://localhost:9333/api',
+  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:9333/api',
   timeout: 10000,
   headers: {
     'Content-Type': 'application/json',

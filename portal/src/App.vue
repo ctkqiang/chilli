@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import HelloWorld from './components/HelloWorld.vue'
+import AuthenticationPage from '@/components/AuthenticationPage.vue';
 </script>
 
 <template>
-  <HelloWorld />
+  <AuthenticationPage />
 </template>
