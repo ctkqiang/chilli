@@ -106,6 +106,7 @@ pub async fn delete_user(
  * 如果 Token 有效，将用户 ID 从 Token 中提取出来，并将用户 ID 作为请求上下文传递给下一个处理函数。
  * 如果 Token 无效，返回 401 Unauthorized 响应。
  */
+#[allow(unused)]
 pub async fn auth_middleware(req: Request, next: Next) -> Result<Response, StatusCode> {
     let auth_header = req
         .headers()

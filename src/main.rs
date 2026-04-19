@@ -10,7 +10,6 @@ use which::which;
 
 use crate::core::get_github_advisories::sync_github_advisories;
 use crate::models::log_level::LogLevel;
-use crate::routes::authentication::auth_middleware;
 use crate::service::database;
 use std::process::{Child, Command, Stdio};
 
@@ -135,21 +134,22 @@ async fn main() {
  * ```
  */
 fn routes(db: DatabaseConnection) -> Router {
-    let protected_routes = Router::new()
-        .route("/api/running", get(routes::processes::runnning_processes))
-        .route("/api/kill/:pid", post(routes::processes::kill_process))
-        .layer(axum::middleware::from_fn(auth_middleware));
+    // let protected_routes = Router::new()
+    //     .route("/api/running", get(routes::processes::runnning_processes))
+    //     .route("/api/kill/:pid", post(routes::processes::kill_process))
+    //     .layer(axum::middleware::from_fn(auth_middleware));
 
     Router::new()
         .route("/", get(routes::system::get_index))
         .route("/health", get(routes::system::get_system_status))
-        .nest("/", protected_routes)
         .route("/api/auth/register", post(routes::authentication::register))
         .route("/api/auth/login", post(routes::authentication::login))
         .route(
             "/api/auth/remove",
             post(routes::authentication::delete_user),
         )
+        .route("/api/running", get(routes::processes::runnning_processes))
+        .route("/api/kill/:pid", post(routes::processes::kill_process))
         .layer(Extension(db))
         .layer(CorsLayer::permissive())
 }
