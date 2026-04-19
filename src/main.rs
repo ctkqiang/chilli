@@ -89,6 +89,50 @@ async fn main() {
  *
  * # 权限校验流程
  * 客户端请求 -> 检查 Authorization Header -> Bearer <Token> -> 解密 PASETO -> 验证通过 -> 执行业务
+ *
+ * # API 调用示例
+ *
+ * ## 获取系统进程（需要认证）
+ * ```bash
+ * curl -X GET http://localhost:9333/api/running \
+ *   -H "Authorization: Bearer <YOUR_TOKEN>"
+ * ```
+ *
+ * ## 终止指定进程（需要认证）
+ * ```bash
+ * curl -X POST http://localhost:9333/api/kill/1234 \
+ *   -H "Authorization: Bearer <YOUR_TOKEN>"
+ * ```
+ *
+ * ## 用户注册
+ * ```bash
+ * curl -X POST http://localhost:9333/api/auth/register \
+ *   -H "Content-Type: application/json" \
+ *   -d '{"username":"admin","password":"secure123"}'
+ * ```
+ *
+ * ## 用户登录
+ * ```bash
+ * curl -X POST http://localhost:9333/api/auth/login \
+ *   -H "Content-Type: application/json" \
+ *   -d '{"username":"admin","password":"secure123"}'
+ * ```
+ *
+ * ## 删除用户（需要认证）
+ * ```bash
+ * curl -X POST http://localhost:9333/api/auth/remove \
+ *   -H "Authorization: Bearer <YOUR_TOKEN>"
+ * ```
+ *
+ * ## 健康检查
+ * ```bash
+ * curl -X GET http://localhost:9333/health
+ * ```
+ *
+ * ## 系统索引
+ * ```bash
+ * curl -X GET http://localhost:9333/
+ * ```
  */
 fn routes(db: DatabaseConnection) -> Router {
     let protected_routes = Router::new()
@@ -110,8 +154,61 @@ fn routes(db: DatabaseConnection) -> Router {
         .layer(CorsLayer::permissive())
 }
 
+/**
+ * 启动前端门户 (Portal)
+ *
+ * # 功能概述
+ * 自动检测并启动前端开发服务器。支持 Bun 和 Node.js (npm) 两种运行时环境，
+ * 优先使用 Bun（性能更优），回退到 npm。
+ *
+ * # 启动流程
+ * ```
+ * 检测 Bun -> 存在？使用 bun run dev
+ *    |
+ *    v
+ * 检测 npm -> 存在？使用 npm run dev
+ *    |
+ *    v
+ *  都不存在 -> panic 提示安装
+ * ```
+ *
+ * # 跨平台支持
+ * - Linux/macOS: 使用 `sh -c` 执行命令
+ * - Windows: 使用 `cmd /C` 执行命令
+ *
+ * # 目录结构要求
+ * ```
+ * chilli/
+ * ├── src/           # 后端代码
+ * └── ../portal/     # 前端代码 (相对路径)
+ *     ├── package.json
+ *     └── ...
+ * ```
+ *
+ * # 进程管理
+ * 返回的 `Child` 进程由 `ProcessGuard` 包装，当后端服务退出时，
+ * 前端进程会自动被终止（通过 Drop trait 实现）。
+ *
+ * # 错误处理
+ * - 找不到 Bun/npm: panic 并提示安装链接
+ * - 启动失败: panic 并检查 portal 目录是否存在
+ *
+ * # 日志输出ZZz
+ * 启动成功后会记录日志：
+ * `[INFO] 正在使用 {runner} 启动前端... http://127.0.0.1:{portal_port}`
+ *
+ * # 依赖
+ * - `which` crate: 检测系统命令是否存在
+ * - `config::Port`: 获取配置的端口号
+ *
+ * # 示例
+ * ```rust
+ * let portal_guard = ProcessGuard(launch_portal());
+ * -> 前端现在运行在 http://127.0.0.1:3000
+ * ```
+ */
 pub fn launch_portal() -> Child {
-    let portal_dir = "../portal";
+    let portal_dir = config::PORTAL_DIR;
 
     let (runner, args) = if which("bun").is_ok() {
         (
