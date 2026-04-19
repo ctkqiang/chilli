@@ -225,7 +225,10 @@ pub async fn initialise_db() -> Result<DatabaseConnection, DbErr> {
     create_tables!(
         db,
         db.get_database_backend(),
-        [crate::models::github_advisories::Entity,]
+        [
+            crate::models::github_advisories::Entity,
+            crate::models::users::Entity,
+        ]
     );
 
     let backend_name = match db.get_database_backend() {

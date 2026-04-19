@@ -5,11 +5,16 @@ mod routes;
 mod service;
 mod utils;
 
+use sea_orm::DatabaseConnection;
+use which::which;
+
 use crate::core::get_github_advisories::sync_github_advisories;
 use crate::models::log_level::LogLevel;
+use crate::routes::authentication::auth_middleware;
 use crate::service::database;
 use std::process::{Child, Command, Stdio};
 
+use axum::extract::Extension;
 use axum::routing::{get, post};
 use axum::Router;
 use tower_http::cors::CorsLayer;
@@ -24,7 +29,6 @@ impl Drop for ProcessGuard {
 
 #[tokio::main]
 async fn main() {
-    let app = routes();
     let _portal_guard = ProcessGuard(launch_portal());
 
     utils::logger::log(LogLevel::Info, "正在启动小辣椒服务...");
@@ -41,6 +45,7 @@ async fn main() {
             panic!("服务启动失败，请检查数据库配置");
         }
     };
+    let app = routes(db.clone());
 
     match sync_github_advisories(&db).await {
         Ok(_) => {
@@ -76,16 +81,34 @@ async fn main() {
     axum::serve(listener, app).await.unwrap();
 }
 
-fn routes() -> Router {
+/**
+ * 路由配置中心
+ * * 这里的架构将 API 分为 [公开接口] 和 [受保护接口]：
+ * 1. 公开接口：用于系统监控、健康检查以及身份验证（注册/登录）。
+ * 2. 受保护接口：通过 `auth_middleware` 拦截，必须持有有效的 PASETO Token 才能访问。
+ *
+ * # 权限校验流程
+ * 客户端请求 -> 检查 Authorization Header -> Bearer <Token> -> 解密 PASETO -> 验证通过 -> 执行业务
+ */
+fn routes(db: DatabaseConnection) -> Router {
+    let protected_routes = Router::new()
+        .route("/api/running", get(routes::processes::runnning_processes))
+        .route("/api/kill/:pid", post(routes::processes::kill_process))
+        .layer(axum::middleware::from_fn(auth_middleware));
+
     Router::new()
         .route("/", get(routes::system::get_index))
         .route("/health", get(routes::system::get_system_status))
-        .route("/api/running", get(routes::processes::runnning_processes))
-        .route("/api/kill/:pid", post(routes::processes::kill_process))
+        .nest("/", protected_routes)
+        .route("/api/auth/register", post(routes::authentication::register))
+        .route("/api/auth/login", post(routes::authentication::login))
+        .route(
+            "/api/auth/remove",
+            post(routes::authentication::delete_user),
+        )
+        .layer(Extension(db))
         .layer(CorsLayer::permissive())
 }
-
-use which::which;
 
 pub fn launch_portal() -> Child {
     let portal_dir = "../portal";

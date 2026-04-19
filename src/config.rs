@@ -11,6 +11,10 @@ pub const DEFAULT_SERVER_HOST: &str = "0.0.0.0";
 pub const DEFAULT_SERVER_PORT: u16 = 9333;
 pub const GITHUB_ADVISORIES_API_URL: &str = "https://api.github.com/advisories";
 
+pub fn refresh_key() -> String {
+    get_env("REFRESH_KEY").unwrap_or_else(|| "default_refresh_key_change_in_production".to_string())
+}
+
 #[allow(dead_code)]
 static ENV_CACHE: Lazy<HashMap<String, String>> = Lazy::new(|| {
     dotenvy::dotenv().ok();

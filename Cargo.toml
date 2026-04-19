@@ -16,7 +16,7 @@ sea-orm = { version = "0.12", features = [
 ] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = { version = "1.0", features = ["alloc"] }
-chrono = "0.4"
+chrono = { version = "0.4", features = ["serde"] }
 anyhow = "1.0"
 dotenvy = "0.15"
 colored = "2.1"
@@ -26,6 +26,9 @@ listeners = "0.5.1"
 reqwest = { version = "0.11", features = ["json"] }
 kill_tree = "0.2"
 which = "6.0"
+pasetors = "0.6"
+argon2 = "0.5"
+lazy_static = "1.4"
 
 [dev-dependencies]
 tokio-test = "0.4"
