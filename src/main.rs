@@ -13,9 +13,19 @@ use axum::routing::{get, post};
 use axum::Router;
 use tower_http::cors::CorsLayer;
 
+struct ProcessGuard(Child);
+
+impl Drop for ProcessGuard {
+    fn drop(&mut self) {
+        let _ = self.0.kill();
+    }
+}
+
 #[tokio::main]
 async fn main() {
     let app = routes();
+    let _portal_guard = ProcessGuard(launch_portal());
+
     utils::logger::log(LogLevel::Info, "正在启动小辣椒服务...");
 
     let db = match database::initialise_db().await {
@@ -72,4 +82,14 @@ fn routes() -> Router {
         .route("/api/running", get(routes::processes::runnning_processes))
         .route("/api/kill/:pid", post(routes::processes::kill_process))
         .layer(CorsLayer::permissive())
+}
+
+pub fn launch_portal() -> Child {
+    Command::new("bun")
+        .args(["dev"])
+        .current_dir("./portal")
+        .stdout(Stdio::inherit())
+        .stderr(Stdio::inherit())
+        .spawn()
+        .expect("Failed to launch Bun portal. Is bun installed?")
 }

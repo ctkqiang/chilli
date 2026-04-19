@@ -1,7 +1,3 @@
-/target
-*.db
-.env
-
 # Logs
 logs
 *.log
