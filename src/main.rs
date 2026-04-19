@@ -8,6 +8,7 @@ mod utils;
 use crate::core::get_github_advisories::sync_github_advisories;
 use crate::models::log_level::LogLevel;
 use crate::service::database;
+use std::process::{Child, Command, Stdio};
 
 use axum::routing::{get, post};
 use axum::Router;
@@ -58,7 +59,7 @@ async fn main() {
     let listener = tokio::net::TcpListener::bind(format!(
         "{}:{}",
         config::DEFAULT_SERVER_HOST,
-        config::DEFAULT_SERVER_PORT
+        config::Port::default().core,
     ))
     .await
     .unwrap();
@@ -68,7 +69,7 @@ async fn main() {
         &format!(
             "服务器监听在 http://{}:{}",
             config::DEFAULT_SERVER_HOST,
-            config::DEFAULT_SERVER_PORT
+            config::Port::default().core,
         ),
     );
 
@@ -84,12 +85,59 @@ fn routes() -> Router {
         .layer(CorsLayer::permissive())
 }
 
+use which::which;
+
 pub fn launch_portal() -> Child {
-    Command::new("bun")
-        .args(["dev"])
-        .current_dir("./portal")
-        .stdout(Stdio::inherit())
-        .stderr(Stdio::inherit())
+    let portal_dir = "../portal";
+
+    let (runner, args) = if which("bun").is_ok() {
+        (
+            "bun",
+            format!("run dev --port {}", config::Port::default().portal),
+        )
+    } else if which("npm").is_ok() {
+        (
+            "npm",
+            format!("run dev -- --port {}", config::Port::default().portal),
+        )
+    } else {
+        panic!(
+            "\n\n[Chilli 环境缺失]: 找不到 Bun 或 Node.js (npm)! \n\
+            请安装其中之一以启动前端门户。\n\
+            Bun: https://bun.sh\n\
+            Node.js: https://nodejs.org\n"
+        );
+    };
+
+    #[cfg(not(windows))]
+    let (shell, flag) = ("sh", "-c");
+
+    #[cfg(windows)]
+    let (shell, flag) = ("cmd", "/C");
+
+    let full_command = format!("{} {}", runner, args);
+
+    utils::logger::log(
+        crate::models::log_level::LogLevel::Info,
+        &format!(
+            "正在使用 {} 启动前端... {}",
+            runner,
+            format!(
+                "http://{}:{}",
+                config::DEFAULT_SERVER_HOST,
+                config::Port::default().portal
+            )
+        ),
+    );
+
+    Command::new(shell)
+        .args([flag, &full_command])
+        .current_dir(portal_dir)
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
         .spawn()
-        .expect("Failed to launch Bun portal. Is bun installed?")
+        .expect(&format!(
+            "[Chilli 错误]: 无法在前端目录 '{}' 中启动门户，目录是否存在？",
+            portal_dir
+        ))
 }

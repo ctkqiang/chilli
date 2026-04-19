@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::env;
 
-pub const APP_NAME: &str = "(小辣椒&chilli)";
+pub const APP_NAME: &str = "(🌶️ 小辣椒&chilli)";
 pub const APP_VERSION: &str = "v0.0.1";
 pub const DEFAULT_SERVER_HOST: &str = "0.0.0.0";
 pub const DEFAULT_SERVER_PORT: u16 = 9333;
@@ -16,6 +16,12 @@ static ENV_CACHE: Lazy<HashMap<String, String>> = Lazy::new(|| {
     dotenvy::dotenv().ok();
     env::vars().collect()
 });
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct Port {
+    pub portal: u16,
+    pub core: u16,
+}
 
 pub fn get_env(key: &str) -> Option<String> {
     ENV_CACHE.get(key).cloned()
@@ -52,7 +58,7 @@ impl Default for Config {
         Self {
             server: ServerConfig {
                 host: "0.0.0.0".to_string(),
-                port: 9333,
+                port: DEFAULT_SERVER_PORT,
             },
             github: GithubConfig { token: None },
             database_path: get_default_database_path(),
@@ -67,6 +73,24 @@ impl Default for Author {
             institution: "哪吒网络安全".to_string(),
             email: "johnmelodymel@qq.com".to_string(),
             contact: "微信: ctkqiang".to_string(),
+        }
+    }
+}
+
+#[allow(dead_code)]
+impl Default for Port {
+    fn default() -> Self {
+        let portal = get_env("PORTAL_PORT")
+            .and_then(|s| s.parse().ok())
+            .unwrap_or(3000);
+
+        let core = get_env("CORE_PORT")
+            .and_then(|s| s.parse().ok())
+            .unwrap_or(DEFAULT_SERVER_PORT);
+
+        Self {
+            portal: portal,
+            core: core,
         }
     }
 }

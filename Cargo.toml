@@ -25,6 +25,7 @@ sysinfo = "0.31.4"
 listeners = "0.5.1"
 reqwest = { version = "0.11", features = ["json"] }
 kill_tree = "0.2"
+which = "6.0"
 
 [dev-dependencies]
 tokio-test = "0.4"
