@@ -201,8 +201,9 @@ pub async fn initialise_db() -> Result<DatabaseConnection, DbErr> {
             config::get_env("QUESTDB_PORT").unwrap_or_else(|| "8812".to_string())
         ),
         _ => {
-            let _ = fs::create_dir_all("./data");
-            return Database::connect("sqlite://./data/chilli.db?mode=rwc").await;
+            let _ = fs::create_dir_all(config::DATABASE_DIR);
+            return Database::connect(&!("sqlite://{}/chilli.db?mode=rwc", config::DATABASE_DIR))
+                .await;
         }
     };
 

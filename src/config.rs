@@ -8,6 +8,7 @@ use std::env;
 pub const APP_NAME: &str = "(🌶️ 小辣椒&chilli)";
 pub const APP_VERSION: &str = "v0.0.1";
 pub const PORTAL_DIR: &str = "../portal";
+pub const DATABASE_DIR: &str = "./data";
 pub const DEFAULT_SERVER_HOST: &str = "0.0.0.0";
 pub const DEFAULT_SERVER_PORT: u16 = 9333;
 pub const GITHUB_ADVISORIES_API_URL: &str = "https://api.github.com/advisories";

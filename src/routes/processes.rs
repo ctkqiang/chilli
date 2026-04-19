@@ -7,6 +7,12 @@ use serde_json::json;
 use crate::core::get_running_process::get_running_applicaitons;
 use crate::models::system_overview::SystemOverview;
 
+/**
+ * 获取当前运行中的进程树
+ *
+ * 本路由用于获取当前系统中所有运行中的进程树。
+ * 它从系统调用中获取进程信息，并将其组织成一个 JSON 格式的响应。
+ */
 pub async fn runnning_processes() -> Json<SystemOverview> {
     let overview = get_running_applicaitons();
     Json(overview)

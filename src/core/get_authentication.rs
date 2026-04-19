@@ -16,9 +16,9 @@ lazy_static::lazy_static! {
 
 pub fn create_token(username: &str) -> String {
     let mut claims = Claims::new().unwrap();
-    claims.add_additional("username", username).unwrap();
-
     let expiration = (Utc::now() + chrono::Duration::hours(24)).to_rfc3339();
+
+    claims.add_additional("username", username).unwrap();
     claims.expiration(&expiration).unwrap();
 
     local::encrypt(&PASETO_KEY, &claims, None, None).unwrap()
@@ -38,8 +38,10 @@ pub fn verify_token(token: &str) -> Result<String, String> {
                 .get("username")
                 .and_then(|v| v.as_str())
                 .ok_or("用户声明缺失")?;
+
             Ok(username.to_string())
         }
+
         Err(_) => Err("令牌解密失败".to_string()),
     }
 }

@@ -23,6 +23,12 @@ pub struct TokenResponse {
     pub token: String,
 }
 
+/**
+ * 注册
+ *
+ * 本路由用于用户注册。
+ * 它从请求体中提取用户名和密码，将密码哈希化后存储到数据库中。
+ */
 pub async fn register(
     Extension(db): Extension<DatabaseConnection>,
     Json(payload): Json<RegisterRequest>,
@@ -41,6 +47,12 @@ pub async fn register(
     }
 }
 
+/**
+ * 登录
+ *
+ * 本路由用于用户登录。
+ * 它从请求体中提取用户名和密码，验证密码是否正确，然后根据用户名创建一个 JWT Token。
+ */
 pub async fn login(
     Extension(db): Extension<DatabaseConnection>,
     Json(payload): Json<LoginRequest>,
@@ -60,6 +72,12 @@ pub async fn login(
     }
 }
 
+/**
+ * 删除用户
+ *
+ * 本路由用于删除当前认证的用户。
+ * 它从请求头中提取 Bearer Token，验证 Token 是否有效，然后根据 Token 中的用户名 ID 删除对应的用户记录。
+ */
 pub async fn delete_user(
     Extension(db): Extension<DatabaseConnection>,
     headers: axum::http::HeaderMap,
@@ -81,6 +99,13 @@ pub async fn delete_user(
     StatusCode::UNAUTHORIZED
 }
 
+/**
+ * 认证中间件
+ *
+ * 本中间件用于验证请求头中的 Bearer Token 是否有效。
+ * 如果 Token 有效，将用户 ID 从 Token 中提取出来，并将用户 ID 作为请求上下文传递给下一个处理函数。
+ * 如果 Token 无效，返回 401 Unauthorized 响应。
+ */
 pub async fn auth_middleware(req: Request, next: Next) -> Result<Response, StatusCode> {
     let auth_header = req
         .headers()
