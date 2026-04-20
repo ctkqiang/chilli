@@ -6,6 +6,8 @@ use axum::{http::StatusCode, response::IntoResponse, Json};
 use sea_orm::DatabaseConnection;
 use serde::Serialize;
 use serde_json::json;
+use tokio::sync::Semaphore;
+use std::sync::Arc;
 
 #[derive(Debug, Clone, Serialize)]
 struct DetectedService {
@@ -14,6 +16,9 @@ struct DetectedService {
     version: Option<String>,
     vulnerabilities: Vec<String>,
 }
+
+/// 扫描漏洞的并发限制
+const MAX_CONCURRENT_SCANS: usize = 5;
 
 #[allow(unused)]
 pub async fn scan_vulnerabilities(
@@ -27,19 +32,57 @@ pub async fn scan_vulnerabilities(
     // 获取本机 IP
     let local_ip = get_local_ip().unwrap_or_else(|| "127.0.0.1".to_string());
 
-    // 首先扫描所有检测到的进程端口
-    for process in &system_overview.processes {
-        let app_name = &process.name;
+    // 创建并发限制器
+    let semaphore = Arc::new(Semaphore::new(MAX_CONCURRENT_SCANS));
 
+    // 收集所有需要扫描的端口和对应的进程名
+    let mut scan_targets: Vec<(u16, String)> = Vec::new();
+
+    for process in &system_overview.processes {
         for port in &process.listening_ports {
+            if scanned_ports.contains(port) {
+                continue;
+            }
             scanned_ports.insert(*port);
+            scan_targets.push((*port, process.name.clone()));
+        }
+    }
+
+    // 首先扫描所有检测到的进程端口
+    let mut scan_tasks = Vec::new();
+
+    for (port, app_name) in scan_targets {
+        let local_ip = local_ip.clone();
+        let sem = semaphore.clone();
+
+        let task = tokio::spawn(async move {
+            let _permit = sem.acquire().await.unwrap();
 
             // 对特定端口进行主动探测
-            let service = probe_service(&local_ip, *port).await;
-            detected_services.push(service.clone());
+            let service = probe_service(&local_ip, port).await;
 
             // 检查特定漏洞
-            if let Some(vuln) = check_specific_vulnerability(&service).await {
+            let specific_vuln = check_specific_vulnerability(&service).await;
+
+            // 常规漏洞扫描
+            let ecosystem = detect_ecosystem(&port);
+            let vuln_result = tokio::time::timeout(
+                std::time::Duration::from_secs(5),
+                check_vulnerability_for_app(&app_name, "unknown", &ecosystem)
+            ).await.ok().and_then(|r| r.ok());
+
+            (service, specific_vuln, vuln_result)
+        });
+
+        scan_tasks.push(task);
+    }
+
+    // 等待所有扫描任务完成
+    for task in scan_tasks {
+        if let Ok((service, specific_vuln, vuln_issues)) = task.await {
+            detected_services.push(service.clone());
+
+            if let Some(vuln) = specific_vuln {
                 all_issues.push(json!({
                     "service": service.service_type,
                     "port": service.port,
@@ -48,51 +91,60 @@ pub async fn scan_vulnerabilities(
                 }));
             }
 
-            // 常规漏洞扫描
-            let ecosystem = detect_ecosystem(port);
-            match check_vulnerability_for_app(app_name, "unknown", &ecosystem).await {
-                Ok(issues) => {
-                    all_issues.extend(issues.iter().map(|i| {
-                        json!({
-                            "service": app_name,
-                            "port": port,
-                            "severity": i.severity,
-                            "summary": i.summary,
-                            "ghsa_id": i.ghsa_id,
-                            "cve_id": i.cve_id
-                        })
-                    }));
-                }
-                Err(e) => {
-                    eprintln!("扫描 {} 失败: {}", app_name, e);
-                }
+            if let Some(issues) = vuln_issues {
+                all_issues.extend(issues.iter().map(|i| {
+                    json!({
+                        "service": &service.service_type,
+                        "port": service.port,
+                        "severity": &i.severity,
+                        "summary": &i.summary,
+                        "ghsa_id": &i.ghsa_id,
+                        "cve_id": &i.cve_id
+                    })
+                }));
             }
         }
     }
 
     // 主动扫描常见漏洞端口（包括 Docker 容器可能映射的端口）
-    let common_vuln_ports = [
-        9000u16, 9001, 8812, 9009, 8822, 8123, 8080, 3000, 5000, 8000,
+    let common_vuln_ports: Vec<u16> = vec![
+        9000, 9001, 8812, 9009, 8822, 8123, 8080, 3000, 5000, 8000,
     ];
 
-    for port in &common_vuln_ports {
-        // 跳过已扫描的端口
-        if scanned_ports.contains(port) {
+    let mut port_tasks = Vec::new();
+
+    for port in common_vuln_ports {
+        if scanned_ports.contains(&port) {
             continue;
         }
 
-        let service = probe_service(&local_ip, *port).await;
+        let local_ip = local_ip.clone();
+        let sem = semaphore.clone();
 
-        // 如果探测到实际服务（不是 unknown），添加到结果
-        if service.service_type != "unknown" {
+        let task = tokio::spawn(async move {
+            let _permit = sem.acquire().await.unwrap();
+            let service = probe_service(&local_ip, port).await;
+
+            if service.service_type != "unknown" {
+                let vuln = check_specific_vulnerability(&service).await;
+                Some((service, vuln))
+            } else {
+                None
+            }
+        });
+
+        port_tasks.push(task);
+    }
+
+    for task in port_tasks {
+        if let Ok(Some((service, vuln))) = task.await {
             detected_services.push(service.clone());
 
-            // 检查特定漏洞
-            if let Some(vuln) = check_specific_vulnerability(&service).await {
+            if let Some(v) = vuln {
                 all_issues.push(json!({
                     "service": service.service_type,
                     "port": service.port,
-                    "vulnerability": vuln,
+                    "vulnerability": v,
                     "severity": "high"
                 }));
             }
@@ -111,7 +163,7 @@ pub async fn scan_vulnerabilities(
 
 async fn probe_service(ip: &str, port: u16) -> DetectedService {
     let client = reqwest::Client::builder()
-        .timeout(std::time::Duration::from_secs(3))
+        .timeout(std::time::Duration::from_secs(2))
         .build()
         .unwrap_or_default();
 
@@ -314,5 +366,5 @@ pub async fn scan_docker_security() -> impl IntoResponse {
         "issues": issues
     });
 
-    (StatusCode::OK, Json(response))
+    (StatusCode::OK, Json(response)).into_response()
 }
