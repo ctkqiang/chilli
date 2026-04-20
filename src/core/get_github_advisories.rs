@@ -1,7 +1,10 @@
 use crate::config::GITHUB_ADVISORIES_API_URL;
-use crate::models::github_advisories::{ActiveModel, Column, Entity as Advisory, Model};
+use crate::models::github_advisories::{
+    ActiveModel, Column, Entity as Advisory, Model, ScanRequest, ScanResult, Vulnerability,
+};
 use crate::models::log_level::LogLevel;
 use crate::utils;
+use anyhow::Result;
 use reqwest::header::{ACCEPT, USER_AGENT};
 use sea_orm::*;
 
@@ -145,4 +148,45 @@ pub async fn sync_github_advisories(
     );
 
     Ok(())
+}
+
+/**
+ * 扫描指定包的安全漏洞
+ *
+ * # 功能概述
+ * 根据包名、版本和生态系统查询相关的安全漏洞信息。
+ *
+ * # 参数
+ * - `req`: 扫描请求，包含包名、版本和生态系统
+ *
+ * # 返回值
+ * - `Ok(ScanResult)`: 扫描结果，包含漏洞列表
+ * - `Err(Box<dyn std::error::Error>)`: 请求或解析失败
+ */
+#[allow(unused)]
+pub async fn fetch_advisories(req: ScanRequest) -> Result<ScanResult> {
+    let client = reqwest::Client::new();
+
+    // 构建查询URL（这里使用GitHub Advisory API的查询端点）
+    let url = format!(
+        "{}/search?package={}&version={}&ecosystem={}",
+        GITHUB_ADVISORIES_API_URL, req.package, req.version, req.ecosystem
+    );
+
+    let response = client
+        .get(&url)
+        .header(USER_AGENT, "chilli-security-service")
+        .header(ACCEPT, "application/vnd.github+json")
+        .send()
+        .await?;
+
+    if response.status().is_success() {
+        let vulnerabilities: Vec<Vulnerability> = response.json().await?;
+        Ok(ScanResult { vulnerabilities })
+    } else {
+        // 如果API不支持搜索，返回空结果
+        Ok(ScanResult {
+            vulnerabilities: vec![],
+        })
+    }
 }

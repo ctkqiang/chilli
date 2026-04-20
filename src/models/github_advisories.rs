@@ -17,3 +17,25 @@ pub struct Model {
 pub enum Relation {}
 
 impl ActiveModelBehavior for ActiveModel {}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ScanRequest {
+    pub package: String,
+    pub version: String,
+    pub ecosystem: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ScanResult {
+    pub vulnerabilities: Vec<Vulnerability>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Vulnerability {
+    pub severity: String,
+    pub summary: String,
+    pub ghsa_id: Option<String>,
+    pub cve_id: Option<String>,
+    pub vulnerable_range: Option<String>,
+    pub patched_version: Option<String>,
+}

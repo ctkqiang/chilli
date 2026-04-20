@@ -228,6 +228,7 @@ pub async fn initialise_db() -> Result<DatabaseConnection, DbErr> {
         [
             crate::models::github_advisories::Entity,
             crate::models::users::Entity,
+            crate::models::security::Entity,
         ]
     );
 
