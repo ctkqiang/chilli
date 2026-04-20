@@ -21,11 +21,18 @@ async function onSubmit() {
       await auth.handleLogin(form);
     } else {
       await AuthService.register(form);
+      error.value = '注册成功，请登录';
       isLogin.value = true;
       form.password = '';
     }
   } catch (e: any) {
-    error.value = '身份验证失败: ' + (e.response?.data?.message || e.message || '服务器断开');
+    if (e.response?.status === 409) {
+      error.value = '用户名已存在';
+    } else if (e.response?.status === 401) {
+      error.value = '用户名或密码错误';
+    } else {
+      error.value = '身份验证失败: ' + (e.response?.data?.message || e.message || '服务器错误');
+    }
   }
 }
 

@@ -136,6 +136,8 @@ fn is_docker_available() -> bool {
         .unwrap_or(false)
 }
 
+#[allow(dead_code)]
+#[allow(unused_variables)]
 #[derive(Debug, Clone)]
 struct ContainerInfo {
     id: String,
