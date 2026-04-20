@@ -154,6 +154,10 @@ fn routes(db: DatabaseConnection) -> Router {
             "/api/security/scan",
             get(routes::security::scan_vulnerabilities),
         )
+        .route(
+            "/api/security/docker",
+            get(routes::security::scan_docker_security),
+        )
         .layer(Extension(db))
         .layer(CorsLayer::permissive())
 }

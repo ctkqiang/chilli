@@ -1,3 +1,4 @@
+use crate::core::get_docker_security::scan_docker_containers;
 use crate::core::get_running_process::get_running_applicaitons;
 use crate::core::get_security::check_vulnerability_for_app;
 use axum::extract::Extension;
@@ -296,4 +297,22 @@ fn detect_ecosystem(port: &u16) -> String {
 
         _ => "unknown".to_string(),
     }
+}
+
+/**
+ * Docker 容器安全扫描端点
+ */
+pub async fn scan_docker_security() -> impl IntoResponse {
+    let issues = scan_docker_containers().await;
+
+    let response = json!({
+        "total_containers_scanned": issues.len(),
+        "critical": issues.iter().filter(|i| i.severity.to_string() == "critical").count(),
+        "high": issues.iter().filter(|i| i.severity.to_string() == "high").count(),
+        "medium": issues.iter().filter(|i| i.severity.to_string() == "medium").count(),
+        "low": issues.iter().filter(|i| i.severity.to_string() == "low").count(),
+        "issues": issues
+    });
+
+    (StatusCode::OK, Json(response))
 }
