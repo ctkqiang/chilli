@@ -1,10 +1,25 @@
 <script setup lang="ts">
 import { RouterView, useRoute } from 'vue-router';
-import { ref, onMounted, onUnmounted } from 'vue';
+import { ref, computed, onMounted, onUnmounted } from 'vue';
+import { useI18n } from 'vue-i18n';
+import i18n from '@/locales';
+import { useThemeStore } from '@/stores/themeStore';
 
 const route = useRoute();
+const { t } = useI18n();
+const themeStore = useThemeStore();
+
+// Get global locale from i18n instance
+type Locale = 'en' | 'zh';
+const locale = computed({
+  get: () => i18n.global.locale.value as Locale,
+  set: (val: Locale) => { i18n.global.locale.value = val; }
+});
+
 const scrolled = ref(false);
 const mobileMenuOpen = ref(false);
+const langDropdownOpen = ref(false);
+const themeDropdownOpen = ref(false);
 
 const handleScroll = () => {
   scrolled.value = window.scrollY > 20;
@@ -19,13 +34,60 @@ onUnmounted(() => {
 });
 
 const navLinks = [
-  { path: '/', name: '仪表盘', icon: '📊' },
-  { path: '/processes', name: '进程', icon: '⚡' },
-  { path: '/security', name: '安全', icon: '🛡️' },
-  { path: '/docker', name: 'Docker', icon: '🐳' },
+  { path: '/', name: 'nav.dashboard', icon: '📊' },
+  { path: '/processes', name: 'nav.processes', icon: '⚡' },
+  { path: '/security', name: 'nav.security', icon: '🛡️' },
+  { path: '/docker', name: 'nav.docker', icon: '🐳' },
 ];
 
 const isActive = (path: string) => route.path === path;
+
+const languages = [
+  { code: 'en', name: 'common.english', flag: '🇺🇸' },
+  { code: 'zh', name: 'common.chinese', flag: '🇨🇳' },
+];
+
+const themes = [
+  { code: 'light', name: 'common.light', icon: '☀️' },
+  { code: 'dark', name: 'common.dark', icon: '🌙' },
+  { code: 'auto', name: 'common.auto', icon: '⚡' },
+];
+
+const currentLanguage = computed(() => {
+  return languages.find(lang => lang.code === locale.value) || languages[0];
+});
+
+const currentTheme = computed(() => {
+  return themes.find(t => t.code === themeStore.theme) || themes[2];
+});
+
+const setLanguage = (code: string) => {
+  locale.value = code as Locale;
+  localStorage.setItem('locale', code);
+  langDropdownOpen.value = false;
+};
+
+const setTheme = (code: string) => {
+  themeStore.setTheme(code as 'light' | 'dark' | 'auto');
+  themeDropdownOpen.value = false;
+};
+
+// Close dropdowns when clicking outside
+const handleClickOutside = (event: MouseEvent) => {
+  const target = event.target as HTMLElement;
+  if (!target.closest('.dropdown')) {
+    langDropdownOpen.value = false;
+    themeDropdownOpen.value = false;
+  }
+};
+
+onMounted(() => {
+  document.addEventListener('click', handleClickOutside);
+});
+
+onUnmounted(() => {
+  document.removeEventListener('click', handleClickOutside);
+});
 </script>
 
 <template>
@@ -46,7 +108,7 @@ const isActive = (path: string) => route.path === path;
           </div>
           <div class="brand-text">
             <span class="brand-name">Chilli</span>
-            <span class="brand-tagline">System Monitor</span>
+            <span class="brand-tagline">{{ t('app.tagline') }}</span>
           </div>
         </div>
 
@@ -60,9 +122,62 @@ const isActive = (path: string) => route.path === path;
             :class="{ 'active': isActive(link.path) }"
           >
             <span class="nav-icon">{{ link.icon }}</span>
-            <span class="nav-text">{{ link.name }}</span>
+            <span class="nav-text">{{ t(link.name) }}</span>
             <div class="nav-indicator"></div>
           </router-link>
+        </div>
+
+        <!-- Controls -->
+        <div class="nav-controls">
+          <!-- Language Dropdown -->
+          <div class="dropdown">
+            <button 
+              class="control-btn" 
+              @click.stop="langDropdownOpen = !langDropdownOpen"
+              :class="{ 'active': langDropdownOpen }"
+            >
+              <span class="control-icon">{{ currentLanguage.flag }}</span>
+              <span class="control-text">{{ t(currentLanguage.name) }}</span>
+              <span class="dropdown-arrow" :class="{ 'open': langDropdownOpen }">▼</span>
+            </button>
+            <div class="dropdown-menu" :class="{ 'open': langDropdownOpen }">
+              <button
+                v-for="lang in languages"
+                :key="lang.code"
+                class="dropdown-item"
+                :class="{ 'active': locale === lang.code }"
+                @click="setLanguage(lang.code)"
+              >
+                <span class="item-icon">{{ lang.flag }}</span>
+                <span class="item-text">{{ t(lang.name) }}</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Theme Dropdown -->
+          <div class="dropdown">
+            <button 
+              class="control-btn" 
+              @click.stop="themeDropdownOpen = !themeDropdownOpen"
+              :class="{ 'active': themeDropdownOpen }"
+            >
+              <span class="control-icon">{{ currentTheme.icon }}</span>
+              <span class="control-text">{{ t(currentTheme.name) }}</span>
+              <span class="dropdown-arrow" :class="{ 'open': themeDropdownOpen }">▼</span>
+            </button>
+            <div class="dropdown-menu" :class="{ 'open': themeDropdownOpen }">
+              <button
+                v-for="theme in themes"
+                :key="theme.code"
+                class="dropdown-item"
+                :class="{ 'active': themeStore.theme === theme.code }"
+                @click="setTheme(theme.code)"
+              >
+                <span class="item-icon">{{ theme.icon }}</span>
+                <span class="item-text">{{ t(theme.name) }}</span>
+              </button>
+            </div>
+          </div>
         </div>
 
         <!-- Mobile Menu Button -->
@@ -84,8 +199,40 @@ const isActive = (path: string) => route.path === path;
           @click="mobileMenuOpen = false"
         >
           <span class="nav-icon">{{ link.icon }}</span>
-          <span class="nav-text">{{ link.name }}</span>
+          <span class="nav-text">{{ t(link.name) }}</span>
         </router-link>
+        
+        <!-- Mobile Controls -->
+        <div class="mobile-controls">
+          <div class="mobile-control-group">
+            <span class="mobile-control-label">{{ t('common.language') }}</span>
+            <div class="mobile-control-options">
+              <button
+                v-for="lang in languages"
+                :key="lang.code"
+                class="mobile-option-btn"
+                :class="{ 'active': locale === lang.code }"
+                @click="setLanguage(lang.code)"
+              >
+                {{ lang.flag }} {{ t(lang.name) }}
+              </button>
+            </div>
+          </div>
+          <div class="mobile-control-group">
+            <span class="mobile-control-label">{{ t('common.theme') }}</span>
+            <div class="mobile-control-options">
+              <button
+                v-for="theme in themes"
+                :key="theme.code"
+                class="mobile-option-btn"
+                :class="{ 'active': themeStore.theme === theme.code }"
+                @click="setTheme(theme.code)"
+              >
+                {{ theme.icon }} {{ t(theme.name) }}
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
     </nav>
 
@@ -103,8 +250,8 @@ const isActive = (path: string) => route.path === path;
     <!-- Footer -->
     <footer class="footer">
       <div class="footer-content">
-        <span class="footer-text">Made with 💜 by Chilli Team</span>
-        <span class="footer-version">v1.0.0</span>
+        <span class="footer-text">{{ t('app.footer') }}</span>
+        <span class="footer-version">{{ t('app.version', { version: '1.0.0' }) }}</span>
       </div>
     </footer>
   </div>
@@ -184,11 +331,9 @@ const isActive = (path: string) => route.path === path;
   padding: 0.75rem 2rem;
 }
 
-@media (prefers-color-scheme: dark) {
-  .navbar.scrolled {
-    background: rgba(15, 23, 42, 0.8);
-    border-bottom-color: rgba(51, 65, 85, 0.6);
-  }
+.dark .navbar.scrolled {
+  background: rgba(15, 23, 42, 0.8);
+  border-bottom-color: rgba(51, 65, 85, 0.6);
 }
 
 .nav-container {
@@ -197,6 +342,7 @@ const isActive = (path: string) => route.path === path;
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 1rem;
 }
 
 /* Brand */
@@ -321,6 +467,114 @@ const isActive = (path: string) => route.path === path;
   display: none;
 }
 
+/* Nav Controls */
+.nav-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* Dropdown */
+.dropdown {
+  position: relative;
+}
+
+.control-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.625rem 1rem;
+  background: var(--color-background-soft);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  color: var(--color-text);
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--transition-base);
+}
+
+.control-btn:hover,
+.control-btn.active {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+}
+
+.control-icon {
+  font-size: 1rem;
+}
+
+.control-text {
+  display: none;
+}
+
+@media (min-width: 1024px) {
+  .control-text {
+    display: inline;
+  }
+}
+
+.dropdown-arrow {
+  font-size: 0.625rem;
+  transition: transform var(--transition-base);
+}
+
+.dropdown-arrow.open {
+  transform: rotate(180deg);
+}
+
+.dropdown-menu {
+  position: absolute;
+  top: calc(100% + 0.5rem);
+  right: 0;
+  min-width: 140px;
+  background: var(--color-background-soft);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  padding: 0.5rem;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-10px);
+  transition: all var(--transition-base);
+  z-index: var(--z-dropdown);
+}
+
+.dropdown-menu.open {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}
+
+.dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  padding: 0.625rem 0.875rem;
+  background: none;
+  border: none;
+  border-radius: var(--radius);
+  color: var(--color-text);
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  text-align: left;
+}
+
+.dropdown-item:hover {
+  background: var(--color-gray-100);
+}
+
+.dropdown-item.active {
+  background: var(--gradient-primary);
+  color: white;
+}
+
+.item-icon {
+  font-size: 1rem;
+}
+
 /* Mobile Menu Button */
 .mobile-menu-btn {
   display: none;
@@ -393,10 +647,59 @@ const isActive = (path: string) => route.path === path;
   color: white;
 }
 
-@media (prefers-color-scheme: dark) {
-  .mobile-menu {
-    background: rgba(15, 23, 42, 0.95);
-  }
+.dark .mobile-menu {
+  background: rgba(15, 23, 42, 0.95);
+}
+
+/* Mobile Controls */
+.mobile-controls {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--color-border);
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.mobile-control-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.mobile-control-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--color-text-soft);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.mobile-control-options {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.mobile-option-btn {
+  padding: 0.5rem 0.875rem;
+  background: var(--color-background-mute);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  color: var(--color-text);
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.mobile-option-btn:hover {
+  border-color: var(--color-primary);
+}
+
+.mobile-option-btn.active {
+  background: var(--gradient-primary);
+  border-color: transparent;
+  color: white;
 }
 
 /* Main Content */
@@ -434,10 +737,8 @@ const isActive = (path: string) => route.path === path;
   backdrop-filter: blur(10px);
 }
 
-@media (prefers-color-scheme: dark) {
-  .footer {
-    background: rgba(15, 23, 42, 0.5);
-  }
+.dark .footer {
+  background: rgba(15, 23, 42, 0.5);
 }
 
 .footer-content {
@@ -465,9 +766,13 @@ const isActive = (path: string) => route.path === path;
 }
 
 /* Responsive */
-@media (max-width: 768px) {
+@media (max-width: 1024px) {
   .nav-links {
     display: none;
+  }
+
+  .nav-controls {
+    margin-left: auto;
   }
 
   .mobile-menu-btn {
@@ -477,7 +782,9 @@ const isActive = (path: string) => route.path === path;
   .mobile-menu {
     display: block;
   }
+}
 
+@media (max-width: 768px) {
   .main-content {
     padding: 1rem;
   }
@@ -486,6 +793,10 @@ const isActive = (path: string) => route.path === path;
     flex-direction: column;
     gap: 0.5rem;
     text-align: center;
+  }
+
+  .nav-container {
+    padding: 0;
   }
 }
 </style>

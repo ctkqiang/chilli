@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { useProcessStore } from '@/stores/processStore';
 import { useSecurityStore } from '@/stores/securityStore';
 
+const { t, locale } = useI18n();
 const processStore = useProcessStore();
 const securityStore = useSecurityStore();
 
@@ -22,7 +24,7 @@ onUnmounted(() => {
 });
 
 const formattedTime = computed(() => {
-  return currentTime.value.toLocaleTimeString('zh-CN', {
+  return currentTime.value.toLocaleTimeString(locale.value === 'zh' ? 'zh-CN' : 'en-US', {
     hour: '2-digit',
     minute: '2-digit',
     second: '2-digit'
@@ -30,7 +32,7 @@ const formattedTime = computed(() => {
 });
 
 const formattedDate = computed(() => {
-  return currentTime.value.toLocaleDateString('zh-CN', {
+  return currentTime.value.toLocaleDateString(locale.value === 'zh' ? 'zh-CN' : 'en-US', {
     year: 'numeric',
     month: 'long',
     day: 'numeric',
@@ -50,15 +52,15 @@ const memoryColor = computed(() => {
   return 'var(--color-success)';
 });
 
-const quickActions = [
-  { name: '查看进程', path: '/processes', icon: '⚡', color: 'var(--color-primary)' },
-  { name: '安全扫描', path: '/security', icon: '🛡️', color: 'var(--color-secondary)' },
+const quickActions = computed(() => [
+  { name: t('dashboard.viewProcesses'), path: '/processes', icon: '⚡', color: 'var(--color-primary)' },
+  { name: t('dashboard.securityScan'), path: '/security', icon: '🛡️', color: 'var(--color-secondary)' },
   { name: 'Docker', path: '/docker', icon: '🐳', color: 'var(--color-accent)' },
-];
+]);
 
 const stats = computed(() => [
   {
-    label: '运行进程',
+    label: t('dashboard.runningProcesses'),
     value: processStore.processes.length,
     icon: '⚡',
     color: 'var(--color-primary)',
@@ -66,7 +68,7 @@ const stats = computed(() => [
     positive: true
   },
   {
-    label: '内存使用',
+    label: t('dashboard.memoryUsage'),
     value: `${memoryUsagePercent.value}%`,
     icon: '💾',
     color: memoryColor.value,
@@ -75,7 +77,7 @@ const stats = computed(() => [
     positive: true
   },
   {
-    label: '运行时间',
+    label: t('dashboard.uptime'),
     value: processStore.formatUptime(processStore.uptime),
     icon: '⏱️',
     color: 'var(--color-accent)',
@@ -83,11 +85,11 @@ const stats = computed(() => [
     positive: true
   },
   {
-    label: '安全威胁',
+    label: t('dashboard.securityThreats'),
     value: securityStore.totalVulnerabilities,
     icon: '🛡️',
     color: securityStore.totalVulnerabilities > 0 ? 'var(--color-danger)' : 'var(--color-success)',
-    change: securityStore.totalVulnerabilities > 0 ? '需关注' : '安全',
+    change: securityStore.totalVulnerabilities > 0 ? t('dashboard.needsAttention') : t('dashboard.safe'),
     positive: securityStore.totalVulnerabilities === 0
   }
 ]);
@@ -100,10 +102,10 @@ const stats = computed(() => [
       <div class="header-content">
         <div class="header-text">
           <h1 class="page-title">
-            <span class="greeting">你好</span>
-            <span class="title-highlight">，欢迎回来</span>
+            <span class="greeting">{{ t('dashboard.greeting') }}</span>
+            <span class="title-highlight">{{ t('dashboard.welcomeBack') }}</span>
           </h1>
-          <p class="page-subtitle">这里是您的系统监控仪表盘</p>
+          <p class="page-subtitle">{{ t('dashboard.subtitle') }}</p>
         </div>
         <div class="clock-card">
           <div class="clock-time">{{ formattedTime }}</div>
@@ -141,7 +143,7 @@ const stats = computed(() => [
     <section class="memory-section">
       <div class="memory-card">
         <div class="memory-header">
-          <h3>内存使用情况</h3>
+          <h3>{{ t('dashboard.memoryUsageTitle') }}</h3>
           <span class="memory-percent" :style="{ color: memoryColor }">
             {{ memoryUsagePercent }}%
           </span>
@@ -153,15 +155,15 @@ const stats = computed(() => [
           ></div>
         </div>
         <div class="memory-details">
-          <span>已用: {{ processStore.formatMemory(processStore.usedMemory) }}</span>
-          <span>总计: {{ processStore.formatMemory(processStore.totalMemory) }}</span>
+          <span>{{ t('dashboard.used') }}: {{ processStore.formatMemory(processStore.usedMemory) }}</span>
+          <span>{{ t('dashboard.total') }}: {{ processStore.formatMemory(processStore.totalMemory) }}</span>
         </div>
       </div>
     </section>
 
     <!-- Quick Actions -->
     <section class="actions-section">
-      <h2 class="section-title">快捷操作</h2>
+      <h2 class="section-title">{{ t('dashboard.quickActions') }}</h2>
       <div class="actions-grid">
         <router-link
           v-for="(action, index) in quickActions"
@@ -181,28 +183,28 @@ const stats = computed(() => [
 
     <!-- System Status -->
     <section class="status-section">
-      <h2 class="section-title">系统状态</h2>
+      <h2 class="section-title">{{ t('dashboard.systemStatus') }}</h2>
       <div class="status-grid">
         <div class="status-card">
           <div class="status-indicator active"></div>
           <div class="status-info">
-            <span class="status-label">API 服务</span>
-            <span class="status-value">运行正常</span>
+            <span class="status-label">{{ t('dashboard.apiService') }}</span>
+            <span class="status-value">{{ t('dashboard.running') }}</span>
           </div>
         </div>
         <div class="status-card">
           <div class="status-indicator active"></div>
           <div class="status-info">
-            <span class="status-label">监控服务</span>
-            <span class="status-value">运行正常</span>
+            <span class="status-label">{{ t('dashboard.monitorService') }}</span>
+            <span class="status-value">{{ t('dashboard.running') }}</span>
           </div>
         </div>
         <div class="status-card">
           <div class="status-indicator" :class="{ warning: securityStore.totalVulnerabilities > 0 }"></div>
           <div class="status-info">
-            <span class="status-label">安全状态</span>
+            <span class="status-label">{{ t('dashboard.securityStatus') }}</span>
             <span class="status-value" :class="{ warning: securityStore.totalVulnerabilities > 0 }">
-              {{ securityStore.totalVulnerabilities > 0 ? '存在风险' : '安全' }}
+              {{ securityStore.totalVulnerabilities > 0 ? t('dashboard.atRisk') : t('dashboard.safe') }}
             </span>
           </div>
         </div>
@@ -253,6 +255,10 @@ const stats = computed(() => [
   .title-highlight {
     color: var(--color-gray-100);
   }
+}
+
+.dark .title-highlight {
+  color: var(--color-gray-100);
 }
 
 .page-subtitle {
@@ -384,6 +390,10 @@ const stats = computed(() => [
   }
 }
 
+.dark .stat-value {
+  color: var(--color-gray-100);
+}
+
 .stat-subtext {
   font-size: 0.75rem;
   color: var(--color-text-muted);
@@ -491,6 +501,10 @@ const stats = computed(() => [
   .section-title {
     color: var(--color-gray-100);
   }
+}
+
+.dark .section-title {
+  color: var(--color-gray-100);
 }
 
 .actions-grid {
@@ -630,6 +644,10 @@ const stats = computed(() => [
   .status-value {
     color: var(--color-gray-100);
   }
+}
+
+.dark .status-value {
+  color: var(--color-gray-100);
 }
 
 /* Animations */
