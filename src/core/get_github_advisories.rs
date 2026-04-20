@@ -118,14 +118,38 @@ pub async fn sync_github_advisories(
     db: &DatabaseConnection,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let client = reqwest::Client::new();
-    let api_data = client
+    let response = client
         .get(GITHUB_ADVISORIES_API_URL)
-        .header(USER_AGENT, "chilli-security-service")
+        .header(USER_AGENT, "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36")
         .header(ACCEPT, "application/vnd.github+json")
         .send()
-        .await?
-        .json::<Vec<Model>>()
         .await?;
+
+    let status = response.status();
+    let text = response.text().await?;
+
+    if !status.is_success() {
+        utils::logger::log(
+            LogLevel::Warn,
+            &format!("GitHub API 返回错误状态码: {}, 响应: {}", status, text),
+        );
+        return Err(format!("GitHub API 错误: {}", status).into());
+    }
+
+    let api_data: Vec<Model> = match serde_json::from_str(&text) {
+        Ok(data) => data,
+        Err(e) => {
+            utils::logger::log(
+                LogLevel::Warn,
+                &format!(
+                    "GitHub API 响应解析失败: {}, 原始响应: {}",
+                    e,
+                    text.chars().take(200).collect::<String>()
+                ),
+            );
+            return Err(e.into());
+        }
+    };
 
     let count = api_data.len();
     let active_models: Vec<ActiveModel> = api_data

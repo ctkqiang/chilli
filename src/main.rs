@@ -152,7 +152,7 @@ fn routes(db: DatabaseConnection) -> Router {
         .route("/api/kill/:pid", post(routes::processes::kill_process))
         .route(
             "/api/security/scan",
-            post(routes::security::scan_vulnerabilities),
+            get(routes::security::scan_vulnerabilities),
         )
         .layer(Extension(db))
         .layer(CorsLayer::permissive())

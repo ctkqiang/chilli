@@ -1,26 +1,247 @@
+use crate::core::get_running_process::get_running_applicaitons;
 use crate::core::get_security::check_vulnerability_for_app;
-use crate::models::github_advisories::ScanRequest;
 use axum::extract::Extension;
 use axum::{http::StatusCode, response::IntoResponse, Json};
 use sea_orm::DatabaseConnection;
+use serde::Serialize;
 use serde_json::json;
+
+#[derive(Debug, Clone, Serialize)]
+struct DetectedService {
+    port: u16,
+    service_type: String,
+    version: Option<String>,
+    vulnerabilities: Vec<String>,
+}
 
 #[allow(unused)]
 pub async fn scan_vulnerabilities(
     Extension(_db): Extension<DatabaseConnection>,
-    Json(req): Json<ScanRequest>,
 ) -> impl IntoResponse {
-    let issues = match check_vulnerability_for_app(&req.package, &req.version, &req.ecosystem).await
-    {
-        Ok(issues) => issues,
-        Err(e) => {
-            return (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(json!({ "error": format!("扫描失败: {}", e) })),
-            )
-                .into_response();
-        }
-    };
+    let system_overview = get_running_applicaitons();
+    let mut all_issues = Vec::new();
+    let mut detected_services = Vec::new();
 
-    (StatusCode::OK, Json(issues)).into_response()
+    // 获取本机 IP
+    let local_ip = get_local_ip().unwrap_or_else(|| "127.0.0.1".to_string());
+
+    for process in &system_overview.processes {
+        let app_name = &process.name;
+
+        for port in &process.listening_ports {
+            // 对特定端口进行主动探测
+            let service = probe_service(&local_ip, *port).await;
+            detected_services.push(service.clone());
+
+            // 检查特定漏洞
+            if let Some(vuln) = check_specific_vulnerability(&service).await {
+                all_issues.push(json!({
+                    "service": service.service_type,
+                    "port": service.port,
+                    "vulnerability": vuln,
+                    "severity": "high"
+                }));
+            }
+
+            // 常规漏洞扫描
+            let ecosystem = detect_ecosystem(port);
+            match check_vulnerability_for_app(app_name, "unknown", &ecosystem).await {
+                Ok(issues) => {
+                    all_issues.extend(issues.iter().map(|i| {
+                        json!({
+                            "service": app_name,
+                            "port": port,
+                            "severity": i.severity,
+                            "summary": i.summary,
+                            "ghsa_id": i.ghsa_id,
+                            "cve_id": i.cve_id
+                        })
+                    }));
+                }
+                Err(e) => {
+                    eprintln!("扫描 {} 失败: {}", app_name, e);
+                }
+            }
+        }
+    }
+
+    let response = json!({
+        "total_processes": system_overview.processes.len(),
+        "vulnerabilities_found": all_issues.len(),
+        "detected_services": detected_services,
+        "issues": all_issues
+    });
+
+    (StatusCode::OK, Json(response)).into_response()
+}
+
+async fn probe_service(ip: &str, port: u16) -> DetectedService {
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(3))
+        .build()
+        .unwrap_or_default();
+
+    let url = format!(
+        "http://{}:{}/exec?query=select%20*%20from%20tables();",
+        ip, port
+    );
+
+    match client.get(&url).send().await {
+        Ok(response) => {
+            if response.status().is_success() {
+                let text = response.text().await.unwrap_or_default();
+                // 检查是否是 QuestDB 响应
+                if text.contains("dataset")
+                    || text.contains("columns")
+                    || text.contains("timestamp")
+                {
+                    return DetectedService {
+                        port,
+                        service_type: "questdb".to_string(),
+                        version: None,
+                        vulnerabilities: vec!["CNVD-2026-84827".to_string()],
+                    };
+                }
+            }
+        }
+        Err(_) => {}
+    }
+
+    // 尝试其他探测方式
+    let health_url = format!("http://{}:{}/health", ip, port);
+    match client.get(&health_url).send().await {
+        Ok(response) => {
+            if response.status().is_success() {
+                return DetectedService {
+                    port,
+                    service_type: "generic_http".to_string(),
+                    version: None,
+                    vulnerabilities: vec![],
+                };
+            }
+        }
+        Err(_) => {}
+    }
+
+    // 默认返回基于端口的猜测
+    DetectedService {
+        port,
+        service_type: detect_ecosystem(&port),
+        version: None,
+        vulnerabilities: vec![],
+    }
+}
+
+async fn check_specific_vulnerability(service: &DetectedService) -> Option<String> {
+    // QuestDB CNVD-2026-84827 检测
+    if service.service_type == "questdb" {
+        return Some("CNVD-2026-84827 - QuestDB 远程代码执行漏洞".to_string());
+    }
+    None
+}
+
+fn get_local_ip() -> Option<String> {
+    // 尝试获取本机 IP
+    let socket = std::net::UdpSocket::bind("0.0.0.0:0").ok()?;
+    socket.connect("8.8.8.8:80").ok()?;
+    let addr = socket.local_addr().ok()?;
+    Some(addr.ip().to_string())
+}
+
+fn detect_ecosystem(port: &u16) -> String {
+    match port {
+        // Infrastructure
+        21 => "ftp".to_string(),
+        22 => "ssh".to_string(),
+        23 => "telnet".to_string(),
+        25 => "smtp".to_string(),
+        53 => "dns".to_string(),
+        80 | 443 => "http/https".to_string(),
+
+        // Node.js / npm
+        3000 | 5173 | 4200 | 3001 | 3005 | 4000 | 1234 | 5001 => "npm/node/vite".to_string(),
+
+        // Python / pip
+        8000 | 8501 | 8001 | 8008 | 8888 | 5005 => "pip/python/jupyter".to_string(),
+
+        // ClickHouse
+        8123 | 9004 | 9440 => "clickhouse".to_string(),
+
+        // QuestDB
+        8812 | 9001 | 9003 | 9002 | 9009 | 8822 => "questdb".to_string(),
+
+        // MySQL
+        3306 | 33060 | 33061 | 4567 | 4444 => "mysql/galera".to_string(),
+
+        // PostgreSQL
+        5432 | 5433 | 5434 | 6432 | 9999 => "postgresql/pgbouncer".to_string(),
+
+        // Redis
+        6379 | 16379 | 26379 | 6380 | 6381 | 16380 => "redis/sentinel".to_string(),
+
+        // MongoDB
+        27017 | 27018 | 27019 | 28017 => "mongodb".to_string(),
+
+        // Redis Cluster
+        7000 | 7001 | 7002 | 7003 | 7004 | 7005 | 7006 => "redis-cluster".to_string(),
+
+        // Kafka / Zookeeper
+        9092 | 9093 | 9094 | 2181 | 2182 | 2183 | 9091 => "kafka/zookeeper".to_string(),
+
+        // Java / Maven
+        8443 | 8010 | 8005 => "maven/java/fpm".to_string(),
+
+        // Docker / Swarm / etcd
+        2375 | 2376 | 2377 | 7946 | 4789 | 2379 | 2380 => "docker/swarm/etcd".to_string(),
+
+        // Prometheus / Grafana
+        9090 | 9100 | 9115 | 9104 => "prometheus/grafana".to_string(),
+
+        // Portainer / MinIO
+        9443 | 9000 => "portainer/minio".to_string(),
+
+        // Webmin / cPanel
+        10000 | 20000 => "webmin/usermin/cpanel".to_string(),
+
+        // MQTT
+        1883 | 8883 | 1884 | 8884 | 18083 => "mqtt/mosquitto/emqx".to_string(),
+
+        // NATS
+        4222 | 6222 | 8222 | 7422 | 4223 => "nats/leaf".to_string(),
+
+        // RabbitMQ
+        5672 | 15672 | 25672 | 4369 => "rabbitmq".to_string(),
+
+        // MSSQL
+        1433 | 1434 => "mssql".to_string(),
+
+        // Oracle
+        1521 | 1821 | 2483 | 2484 => "oracle".to_string(),
+
+        // Elasticsearch
+        9200 | 9300 | 9600 | 9700 => "elasticsearch/logstash/opensearch".to_string(),
+
+        // Kibana
+        5601 => "kibana".to_string(),
+
+        // SNMP
+        161 | 162 => "snmp".to_string(),
+
+        // LDAP
+        389 | 636 => "ldap".to_string(),
+
+        // rsync
+        873 => "rsync".to_string(),
+
+        // NFS
+        2049 => "nfs".to_string(),
+
+        // VNC
+        5900 | 5901 | 5902 => "vnc".to_string(),
+
+        // RDP
+        3389 => "rdp".to_string(),
+
+        _ => "unknown".to_string(),
+    }
 }
