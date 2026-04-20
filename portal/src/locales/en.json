@@ -92,7 +92,18 @@
     "noIssues": "No security vulnerabilities found",
     "noIssuesTip": "Your system appears to be secure",
     "containerName": "Container Name",
-    "issueType": "Issue Type"
+    "issueType": "Issue Type",
+    "scanningTitle": "Scanning System Security...",
+    "scanningDesc": "Please wait, analyzing processes and ports",
+    "rescan": "Rescan",
+    "filterBySeverity": "Filter by Severity",
+    "all": "All",
+    "scannedProcesses": "Scanned Processes",
+    "detectedServices": "Detected Services",
+    "vulnerabilities": "vulnerabilities",
+    "vulnerabilityDetails": "Vulnerability Details",
+    "noVulnerabilities": "No Vulnerabilities Found",
+    "systemSecure": "Your system appears to be secure"
   },
   "docker": {
     "title": "Docker Containers",

@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { useSecurityStore } from '@/stores/securityStore';
 
+const { t } = useI18n();
 const securityStore = useSecurityStore();
 const severityFilter = ref('all');
 const expandedServices = ref<Set<number>>(new Set());
@@ -59,8 +61,8 @@ const getSeverityBg = (severity: string) => {
     <header class="page-header">
       <div class="header-content">
         <div>
-          <h1 class="page-title">安全扫描</h1>
-          <p class="page-subtitle">检测系统安全漏洞和风险</p>
+          <h1 class="page-title">{{ t('security.title') }}</h1>
+          <p class="page-subtitle">{{ t('security.subtitle') }}</p>
         </div>
         <button
           class="btn"
@@ -69,7 +71,7 @@ const getSeverityBg = (severity: string) => {
           @click="securityStore.scanVulnerabilities()"
         >
           <span class="btn-icon" :class="{ 'spin': securityStore.loading }">🔄</span>
-          {{ securityStore.loading ? '扫描中...' : '重新扫描' }}
+          {{ securityStore.loading ? t('security.scanning') : t('security.rescan') }}
         </button>
       </div>
     </header>
@@ -82,15 +84,15 @@ const getSeverityBg = (severity: string) => {
         <div class="scan-ring"></div>
         <span class="scan-icon">🛡️</span>
       </div>
-      <h3>正在扫描系统安全...</h3>
-      <p>请稍候，正在分析进程和端口</p>
+      <h3>{{ t('security.scanningTitle') }}</h3>
+      <p>{{ t('security.scanningDesc') }}</p>
     </div>
 
     <!-- Error State -->
     <div v-else-if="securityStore.error" class="error-state">
       <span class="error-icon">⚠️</span>
       <span>{{ securityStore.error }}</span>
-      <button class="btn" @click="securityStore.scanVulnerabilities()">重试</button>
+      <button class="btn" @click="securityStore.scanVulnerabilities()">{{ t('common.retry') }}</button>
     </div>
 
     <!-- Results -->
@@ -101,28 +103,28 @@ const getSeverityBg = (severity: string) => {
           <div class="severity-icon">🔴</div>
           <div class="severity-info">
             <span class="severity-count">{{ securityStore.criticalCount }}</span>
-            <span class="severity-label">严重</span>
+            <span class="severity-label">{{ t('security.critical') }}</span>
           </div>
         </div>
         <div class="severity-card high" :class="{ 'active': securityStore.highCount > 0 }">
           <div class="severity-icon">🟠</div>
           <div class="severity-info">
             <span class="severity-count">{{ securityStore.highCount }}</span>
-            <span class="severity-label">高危</span>
+            <span class="severity-label">{{ t('security.high') }}</span>
           </div>
         </div>
         <div class="severity-card medium" :class="{ 'active': securityStore.mediumCount > 0 }">
           <div class="severity-icon">🟡</div>
           <div class="severity-info">
             <span class="severity-count">{{ securityStore.mediumCount }}</span>
-            <span class="severity-label">中危</span>
+            <span class="severity-label">{{ t('security.medium') }}</span>
           </div>
         </div>
         <div class="severity-card low" :class="{ 'active': securityStore.lowCount > 0 }">
           <div class="severity-icon">🟢</div>
           <div class="severity-info">
             <span class="severity-count">{{ securityStore.lowCount }}</span>
-            <span class="severity-label">低危</span>
+            <span class="severity-label">{{ t('security.low') }}</span>
           </div>
         </div>
       </div>
@@ -130,30 +132,30 @@ const getSeverityBg = (severity: string) => {
       <!-- Filter Bar -->
       <div class="filter-bar">
         <div class="filter-group">
-          <label>严重程度筛选:</label>
+          <label>{{ t('security.filterBySeverity') }}:</label>
           <select v-model="severityFilter" @change="onFilterChange" class="filter-select">
-            <option value="all">全部</option>
-            <option value="critical">严重</option>
-            <option value="high">高危</option>
-            <option value="medium">中危</option>
-            <option value="low">低危</option>
+            <option value="all">{{ t('security.all') }}</option>
+            <option value="critical">{{ t('security.critical') }}</option>
+            <option value="high">{{ t('security.high') }}</option>
+            <option value="medium">{{ t('security.medium') }}</option>
+            <option value="low">{{ t('security.low') }}</option>
           </select>
         </div>
         <div class="scan-info">
           <span class="info-item">
             <span class="info-icon">📊</span>
-            扫描进程: {{ securityStore.vulnerabilityResult.total_processes }}
+            {{ t('security.scannedProcesses') }}: {{ securityStore.vulnerabilityResult.total_processes }}
           </span>
           <span class="info-item">
             <span class="info-icon">🔍</span>
-            发现问题: {{ securityStore.totalVulnerabilities }}
+            {{ t('security.issuesFound') }}: {{ securityStore.totalVulnerabilities }}
           </span>
         </div>
       </div>
 
       <!-- Services List -->
       <div v-if="securityStore.detectedServices.length" class="services-section">
-        <h2 class="section-title">检测到的服务</h2>
+        <h2 class="section-title">{{ t('security.detectedServices') }}</h2>
         <div class="services-list">
           <div
             v-for="service in securityStore.detectedServices"
@@ -169,7 +171,7 @@ const getSeverityBg = (severity: string) => {
               </div>
               <div class="service-badges">
                 <span v-if="service.vulnerabilities.length" class="vuln-badge">
-                  {{ service.vulnerabilities.length }} 个漏洞
+                  {{ service.vulnerabilities.length }} {{ t('security.vulnerabilities') }}
                 </span>
                 <span class="expand-icon">{{ expandedServices.has(service.port) ? '▼' : '▶' }}</span>
               </div>
@@ -194,7 +196,7 @@ const getSeverityBg = (severity: string) => {
 
       <!-- Vulnerability Issues -->
       <div v-if="securityStore.vulnerabilityIssues.length" class="issues-section">
-        <h2 class="section-title">漏洞详情</h2>
+        <h2 class="section-title">{{ t('security.vulnerabilityDetails') }}</h2>
         <div class="issues-list">
           <div
             v-for="(issue, index) in securityStore.sortedVulnerabilityIssues"
@@ -232,8 +234,8 @@ const getSeverityBg = (severity: string) => {
           <span class="success-icon">✅</span>
           <div class="success-ring"></div>
         </div>
-        <h3>未发现安全漏洞</h3>
-        <p>您的系统目前看起来是安全的</p>
+        <h3>{{ t('security.noVulnerabilities') }}</h3>
+        <p>{{ t('security.systemSecure') }}</p>
       </div>
     </div>
   </div>

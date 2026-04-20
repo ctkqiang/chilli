@@ -92,7 +92,18 @@
     "noIssues": "未发现安全漏洞",
     "noIssuesTip": "您的系统目前看起来是安全的",
     "containerName": "容器名称",
-    "issueType": "问题类型"
+    "issueType": "问题类型",
+    "scanningTitle": "正在扫描系统安全...",
+    "scanningDesc": "请稍候，正在分析进程和端口",
+    "rescan": "重新扫描",
+    "filterBySeverity": "严重程度筛选",
+    "all": "全部",
+    "scannedProcesses": "扫描进程",
+    "detectedServices": "检测到的服务",
+    "vulnerabilities": "个漏洞",
+    "vulnerabilityDetails": "漏洞详情",
+    "noVulnerabilities": "未发现安全漏洞",
+    "systemSecure": "您的系统目前看起来是安全的"
   },
   "docker": {
     "title": "Docker 容器",
