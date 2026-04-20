@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { useProcessStore } from '@/stores/processStore';
 import type { Process } from '@/domain/models';
 
+const { t, locale } = useI18n();
 const processStore = useProcessStore();
 const searchQuery = ref('');
 const sortBy = ref<'name' | 'pid' | 'memory'>('memory');
@@ -69,9 +71,9 @@ const executeKill = async () => {
 
 const getProcessStatus = (process: Process) => {
   if (process.listening_ports.length > 0) {
-    return { text: '运行中', class: 'active' };
+    return { text: t('processes.running'), class: 'active' };
   }
-  return { text: '正常', class: 'normal' };
+  return { text: t('processes.normal'), class: 'normal' };
 };
 </script>
 
@@ -81,13 +83,13 @@ const getProcessStatus = (process: Process) => {
     <header class="page-header">
       <div class="header-content">
         <div>
-          <h1 class="page-title">进程管理</h1>
-          <p class="page-subtitle">管理系统进程和服务</p>
+          <h1 class="page-title">{{ t('processes.title') }}</h1>
+          <p class="page-subtitle">{{ t('processes.subtitle') }}</p>
         </div>
         <div class="header-actions">
           <button class="btn btn-secondary" @click="processStore.fetchProcesses()">
             <span class="btn-icon">🔄</span>
-            刷新
+            {{ t('common.refresh') }}
           </button>
         </div>
       </div>
@@ -100,30 +102,30 @@ const getProcessStatus = (process: Process) => {
         <input
           v-model="searchQuery"
           type="text"
-          placeholder="搜索进程名称、PID或端口..."
+          :placeholder="t('processes.searchPlaceholder')"
           class="search-input"
         />
         <button v-if="searchQuery" class="clear-btn" @click="searchQuery = ''">✕</button>
       </div>
       <div class="toolbar-info">
         <span class="info-badge">
-          <span class="info-icon">📊</span>
-          共 {{ filteredProcesses.length }} 个进程
-        </span>
+            <span class="info-icon">📊</span>
+            {{ t('processes.totalProcesses', { count: filteredProcesses.length }) }}
+          </span>
       </div>
     </div>
 
     <!-- Loading State -->
     <div v-if="processStore.loading" class="loading-state">
       <div class="loading-spinner"></div>
-      <span>正在加载进程数据...</span>
+      <span>{{ t('processes.loading') }}</span>
     </div>
 
     <!-- Error State -->
     <div v-else-if="processStore.error" class="error-state">
       <span class="error-icon">⚠️</span>
       <span>{{ processStore.error }}</span>
-      <button class="btn" @click="processStore.fetchProcesses()">重试</button>
+      <button class="btn" @click="processStore.fetchProcesses()">{{ t('common.retry') }}</button>
     </div>
 
     <!-- Process Table -->
@@ -132,21 +134,21 @@ const getProcessStatus = (process: Process) => {
         <thead>
           <tr>
             <th class="col-sortable" @click="toggleSort('pid')">
-              PID
+              {{ t('processes.pid') }}
               <span class="sort-icon" :class="{ active: sortBy === 'pid', asc: sortOrder === 'asc' }">↓</span>
             </th>
             <th class="col-sortable" @click="toggleSort('name')">
-              进程名称
+              {{ t('processes.name') }}
               <span class="sort-icon" :class="{ active: sortBy === 'name', asc: sortOrder === 'asc' }">↓</span>
             </th>
             <th class="col-sortable" @click="toggleSort('memory')">
-              内存使用
+              {{ t('processes.memory') }}
               <span class="sort-icon" :class="{ active: sortBy === 'memory', asc: sortOrder === 'asc' }">↓</span>
             </th>
-            <th>启动时间</th>
-            <th>监听端口</th>
-            <th>状态</th>
-            <th>操作</th>
+            <th>{{ t('processes.startTime') }}</th>
+            <th>{{ t('processes.ports') }}</th>
+            <th>{{ t('processes.status') }}</th>
+            <th>{{ t('processes.actions') }}</th>
           </tr>
         </thead>
         <tbody>
@@ -177,7 +179,7 @@ const getProcessStatus = (process: Process) => {
               <span class="memory-text">{{ processStore.formatMemory(process.memory_bytes) }}</span>
             </td>
             <td class="col-time">
-              {{ new Date(process.start_time).toLocaleString('zh-CN') }}
+              {{ new Date(process.start_time).toLocaleString(locale === 'zh' ? 'zh-CN' : 'en-US') }}
             </td>
             <td class="col-ports">
               <div v-if="process.listening_ports.length" class="port-list">
@@ -200,7 +202,7 @@ const getProcessStatus = (process: Process) => {
               </span>
             </td>
             <td class="col-actions">
-              <button class="action-btn kill" @click="confirmKill(process)" title="终止进程">
+              <button class="action-btn kill" @click="confirmKill(process)" :title="t('processes.kill')">
                 <span>✕</span>
               </button>
             </td>
@@ -212,8 +214,8 @@ const getProcessStatus = (process: Process) => {
     <!-- Empty State -->
     <div v-if="!processStore.loading && !processStore.error && filteredProcesses.length === 0" class="empty-state">
       <span class="empty-icon">🔍</span>
-      <h3>未找到进程</h3>
-      <p>尝试调整搜索条件</p>
+      <h3>{{ t('processes.noProcesses') }}</h3>
+      <p>{{ t('processes.noProcessesTip') }}</p>
     </div>
 
     <!-- Kill Confirmation Modal -->
@@ -222,23 +224,23 @@ const getProcessStatus = (process: Process) => {
         <div class="modal-content">
           <div class="modal-header">
             <span class="modal-icon">⚠️</span>
-            <h3>确认终止进程</h3>
+            <h3>{{ t('processes.killConfirmTitle') }}</h3>
           </div>
           <div class="modal-body">
-            <p>您确定要终止以下进程吗？</p>
+            <p>{{ t('processes.killConfirmMessage') }}</p>
             <div class="process-info" v-if="processToKill">
-              <span class="info-label">进程名称:</span>
+              <span class="info-label">{{ t('processes.processName') }}:</span>
               <span class="info-value">{{ processToKill.name }}</span>
             </div>
             <div class="process-info" v-if="processToKill">
-              <span class="info-label">PID:</span>
+              <span class="info-label">{{ t('processes.pid') }}:</span>
               <span class="info-value">{{ processToKill.pid }}</span>
             </div>
-            <p class="warning-text">此操作不可撤销。</p>
+            <p class="warning-text">{{ t('processes.killWarning') }}</p>
           </div>
           <div class="modal-footer">
-            <button class="btn btn-secondary" @click="showKillConfirm = false">取消</button>
-            <button class="btn btn-danger" @click="executeKill">终止进程</button>
+            <button class="btn btn-secondary" @click="showKillConfirm = false">{{ t('common.cancel') }}</button>
+            <button class="btn btn-danger" @click="executeKill">{{ t('processes.confirmKill') }}</button>
           </div>
         </div>
       </div>

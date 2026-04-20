@@ -107,7 +107,7 @@ onUnmounted(() => {
             <div class="logo-glow"></div>
           </div>
           <div class="brand-text">
-            <span class="brand-name">Chilli</span>
+            <span class="brand-name">{{ t('app.name') }}</span>
             <span class="brand-tagline">{{ t('app.tagline') }}</span>
           </div>
         </div>

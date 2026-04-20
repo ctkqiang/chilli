@@ -66,7 +66,11 @@
     "cancel": "Cancel",
     "confirmKill": "Terminate Process",
     "noProcesses": "No processes found",
-    "noProcessesTip": "Try adjusting your search criteria"
+    "noProcessesTip": "Try adjusting your search criteria",
+    "running": "Running",
+    "normal": "Normal",
+    "status": "Status",
+    "killWarning": "This action cannot be undone."
   },
   "security": {
     "title": "Security Scan",
@@ -128,6 +132,7 @@
     "create": "Create",
     "back": "Back",
     "refresh": "Refresh",
+    "retry": "Retry",
     "search": "Search",
     "filter": "Filter",
     "noData": "No data available",
@@ -142,6 +147,7 @@
   "app": {
     "tagline": "System Monitor",
     "footer": "哪吒网络安全",
-    "version": "v{version}"
+    "version": "v{version}",
+    "name": "Chilli"
   }
 }

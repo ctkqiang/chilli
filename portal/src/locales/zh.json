@@ -66,7 +66,11 @@
     "cancel": "取消",
     "confirmKill": "终止进程",
     "noProcesses": "未找到进程",
-    "noProcessesTip": "尝试调整搜索条件"
+    "noProcessesTip": "尝试调整搜索条件",
+    "running": "运行中",
+    "normal": "正常",
+    "status": "状态",
+    "killWarning": "此操作不可撤销。"
   },
   "security": {
     "title": "安全扫描",
@@ -128,6 +132,7 @@
     "create": "创建",
     "back": "返回",
     "refresh": "刷新",
+    "retry": "重试",
     "search": "搜索",
     "filter": "筛选",
     "noData": "暂无数据",
@@ -142,6 +147,7 @@
   "app": {
     "tagline": "系统监控",
     "footer": "哪吒网络安全",
-    "version": "v{version}"
+    "version": "v{version}",
+    "name": "小辣椒"
   }
 }
