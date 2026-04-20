@@ -21,14 +21,18 @@ pub async fn scan_vulnerabilities(
     let system_overview = get_running_applicaitons();
     let mut all_issues = Vec::new();
     let mut detected_services = Vec::new();
+    let mut scanned_ports = std::collections::HashSet::new();
 
     // 获取本机 IP
     let local_ip = get_local_ip().unwrap_or_else(|| "127.0.0.1".to_string());
 
+    // 首先扫描所有检测到的进程端口
     for process in &system_overview.processes {
         let app_name = &process.name;
 
         for port in &process.listening_ports {
+            scanned_ports.insert(*port);
+
             // 对特定端口进行主动探测
             let service = probe_service(&local_ip, *port).await;
             detected_services.push(service.clone());
@@ -65,6 +69,35 @@ pub async fn scan_vulnerabilities(
         }
     }
 
+    // 主动扫描常见漏洞端口（包括 Docker 容器可能映射的端口）
+    let common_vuln_ports = [
+        9000u16, 9001, 8812, 9009, 8822, 8123, 8080, 3000, 5000, 8000,
+    ];
+
+    for port in &common_vuln_ports {
+        // 跳过已扫描的端口
+        if scanned_ports.contains(port) {
+            continue;
+        }
+
+        let service = probe_service(&local_ip, *port).await;
+
+        // 如果探测到实际服务（不是 unknown），添加到结果
+        if service.service_type != "unknown" {
+            detected_services.push(service.clone());
+
+            // 检查特定漏洞
+            if let Some(vuln) = check_specific_vulnerability(&service).await {
+                all_issues.push(json!({
+                    "service": service.service_type,
+                    "port": service.port,
+                    "vulnerability": vuln,
+                    "severity": "high"
+                }));
+            }
+        }
+    }
+
     let response = json!({
         "total_processes": system_overview.processes.len(),
         "vulnerabilities_found": all_issues.len(),
@@ -81,33 +114,49 @@ async fn probe_service(ip: &str, port: u16) -> DetectedService {
         .build()
         .unwrap_or_default();
 
-    let url = format!(
-        "http://{}:{}/exec?query=select%20*%20from%20tables();",
-        ip, port
-    );
+    // QuestDB 特定端口列表
+    let questdb_ports = [8812u16, 9001, 9003, 9002, 9009, 8822, 9000];
 
-    match client.get(&url).send().await {
-        Ok(response) => {
-            if response.status().is_success() {
-                let text = response.text().await.unwrap_or_default();
-                // 检查是否是 QuestDB 响应
-                if text.contains("dataset")
-                    || text.contains("columns")
-                    || text.contains("timestamp")
-                {
-                    return DetectedService {
-                        port,
-                        service_type: "questdb".to_string(),
-                        version: None,
-                        vulnerabilities: vec!["CNVD-2026-84827".to_string()],
-                    };
+    // 如果是 QuestDB 端口，先尝试 QuestDB 特定探测
+    if questdb_ports.contains(&port) {
+        let url = format!(
+            "http://{}:{}/exec?query=select%20*%20from%20tables();",
+            ip, port
+        );
+
+        match client.get(&url).send().await {
+            Ok(response) => {
+                if response.status().is_success() {
+                    let text = response.text().await.unwrap_or_default();
+                    // 检查是否是 QuestDB 响应
+                    if text.contains("dataset")
+                        || text.contains("columns")
+                        || text.contains("timestamp")
+                        || text.contains("query")
+                        || text.contains("count")
+                    {
+                        return DetectedService {
+                            port,
+                            service_type: "questdb".to_string(),
+                            version: None,
+                            vulnerabilities: vec!["CNVD-2026-84827".to_string()],
+                        };
+                    }
                 }
             }
+            Err(_) => {}
         }
-        Err(_) => {}
+
+        // 即使 HTTP 探测失败，如果是 QuestDB 端口，也标记为可能存在漏洞
+        return DetectedService {
+            port,
+            service_type: "questdb".to_string(),
+            version: None,
+            vulnerabilities: vec!["CNVD-2026-84827 (待确认)".to_string()],
+        };
     }
 
-    // 尝试其他探测方式
+    // 尝试健康检查端点
     let health_url = format!("http://{}:{}/health", ip, port);
     match client.get(&health_url).send().await {
         Ok(response) => {
@@ -133,6 +182,10 @@ async fn probe_service(ip: &str, port: u16) -> DetectedService {
 }
 
 async fn check_specific_vulnerability(service: &DetectedService) -> Option<String> {
+    if !service.vulnerabilities.is_empty() {
+        return Some(service.vulnerabilities[0].clone());
+    }
+
     // QuestDB CNVD-2026-84827 检测
     if service.service_type == "questdb" {
         return Some("CNVD-2026-84827 - QuestDB 远程代码执行漏洞".to_string());
@@ -141,7 +194,6 @@ async fn check_specific_vulnerability(service: &DetectedService) -> Option<Strin
 }
 
 fn get_local_ip() -> Option<String> {
-    // 尝试获取本机 IP
     let socket = std::net::UdpSocket::bind("0.0.0.0:0").ok()?;
     socket.connect("8.8.8.8:80").ok()?;
     let addr = socket.local_addr().ok()?;
