@@ -1,0 +1,31 @@
+{
+  "name": "chilli-portal",
+  "version": "0.0.1",
+  "title": "小辣椒 Chilli Portal",
+  "description": "高性能系统遥测与网络安全监控平台 - Frontend Portal UI",
+  "summary": "System Monitoring Dashboard & Web Interface",
+  "documentation": "https://github.com/ctkqiang/chilli",
+  "vendor": {
+    "name": "Chilli Team"
+  },
+  "licenses": [
+    "MIT"
+  ],
+  "source": {
+    "url": "https://github.com/ctkqiang/chilli"
+  },
+  "categories": [
+    "Monitoring",
+    "Web UI",
+    "Dashboard"
+  ],
+  "keywords": [
+    "dashboard",
+    "monitoring",
+    "web-ui",
+    "vue3",
+    "frontend",
+    "telemetry",
+    "security"
+  ]
+}

@@ -1,0 +1,71 @@
+# Git
+.git
+.gitignore
+.gitattributes
+
+# IDE
+.idea
+.vscode
+*.swp
+*.swo
+*~
+
+# Rust
+/target
+Cargo.lock
+**/*.rs.bk
+
+# Node.js
+node_modules
+npm-debug.log
+yarn-error.log
+yarn-debug.log
+package-lock.json
+yarn.lock
+
+# Frontend build (will be built in container)
+# portal/dist  # 注释掉，因为我们需要复制已构建的前端文件
+portal/node_modules
+
+# Data and logs
+data/
+*.db
+*.db-journal
+*.log
+logs/
+
+# Tests
+tests/
+**/*_test.rs
+**/*_tests.rs
+
+# Documentation
+docs/*.png
+docs/*.jpg
+docs/*.gif
+*.md
+!README.md
+
+# CI/CD
+.github/
+.gitlab-ci.yml
+.travis.yml
+
+# Docker
+Dockerfile
+docker-compose*.yml
+.dockerignore
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temporary files
+tmp/
+temp/
+*.tmp

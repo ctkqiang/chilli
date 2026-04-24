@@ -82,13 +82,31 @@
 
 ## 快速开始
 
-### 环境要求
+### 方式一：使用 Docker（推荐）
+
+```bash
+# 使用 Docker 运行
+docker run -d \
+  --name chilli \
+  -p 9333:9333 \
+  -v $(pwd)/data:/data \
+  ctkqiang/chilli:latest
+
+# 或使用 Docker Compose
+docker-compose up -d
+```
+
+访问 http://localhost:9333 即可使用 Web 界面。
+
+### 方式二：从源码构建
+
+#### 环境要求
 
 - Rust 1.75+
 - Node.js 18+ (前端开发)
 - SQLite (默认) 或 MySQL/PostgreSQL
 
-### 安装
+#### 安装
 
 ```bash
 # 克隆仓库

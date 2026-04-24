@@ -1,0 +1,111 @@
+services:
+  # MySQL 数据库服务
+  mysql:
+    image: mysql:8.0
+    container_name: chilli-mysql
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root_password}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-chilli}
+      MYSQL_USER: ${MYSQL_USER:-chilli}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-chilli_password}
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "${MYSQL_PORT:-3306}:3306"
+    networks:
+      - chilli-network
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "mysqladmin",
+          "ping",
+          "-h",
+          "localhost",
+          "-u",
+          "${MYSQL_USER:-chilli}",
+          "-p${MYSQL_PASSWORD:-chilli_password}",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  # 前端门户服务
+  portal:
+    build:
+      context: .
+      dockerfile: Dockerfile.portal
+    image: ctkqiang/chilli-portal:latest
+    container_name: chilli-portal
+    restart: unless-stopped
+    ports:
+      - "${PORTAL_PORT:-3000}:3000"
+    networks:
+      - chilli-network
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "wget",
+          "--no-verbose",
+          "--tries=1",
+          "--spider",
+          "http://localhost:3000",
+        ]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+
+  # 主应用服务（后端 API）
+  chilli:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: ctkqiang/chilli:latest
+    container_name: chilli
+    restart: unless-stopped
+    ports:
+      - "${APP_PORT:-9333}:9333"
+    env_file: .env
+    environment:
+      - PORT=${APP_PORT:-9333}
+      - RUST_LOG=${RUST_LOG:-info}
+      - DATABASE_URL=mysql://${MYSQL_USER:-chilli}:${MYSQL_PASSWORD:-chilli_password}@mysql:3306/${MYSQL_DATABASE:-chilli}
+      - MYSQL_HOST=mysql
+      - MYSQL_USER=${MYSQL_USER:-chilli}
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD:-chilli_password}
+      - MYSQL_DATABASE=${MYSQL_DATABASE:-chilli}
+      - SKIP_PORTAL_LAUNCH=1
+    volumes:
+      - /proc:/host/proc:ro
+    networks:
+      - chilli-network
+    depends_on:
+      mysql:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "wget",
+          "--no-verbose",
+          "--tries=1",
+          "--spider",
+          "http://localhost:9333/health",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+networks:
+  chilli-network:
+    driver: bridge
+
+volumes:
+  mysql-data:

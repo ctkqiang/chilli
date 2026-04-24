@@ -7,7 +7,10 @@ use std::env;
 
 pub const APP_NAME: &str = "(🌶️ 小辣椒&chilli)";
 pub const APP_VERSION: &str = "v0.0.1";
-pub const PORTAL_DIR: &str = "../portal";
+pub fn get_portal_dir() -> String {
+    std::env::var("PORTAL_DIR").unwrap_or_else(|_| "../portal".to_string())
+}
+
 pub const DATABASE_DIR: &str = "./data";
 pub const DEFAULT_SERVER_HOST: &str = "0.0.0.0";
 pub const DEFAULT_SERVER_PORT: u16 = 9333;
