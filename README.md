@@ -297,3 +297,89 @@ chilli/
 ```
 
 ---
+
+**如果这个项目对你有帮助，请给它一个 ⭐️ 星标！**
+
+</div>
+
+---
+
+### 🌐 全球捐赠通道
+
+#### 国内用户
+
+<div align="center" style="margin: 40px 0">
+
+<div align="center">
+<table>
+<tr>
+<td align="center" width="300">
+<img src="https://github.com/ctkqiang/ctkqiang/blob/main/assets/IMG_9863.jpg?raw=true" width="200" />
+<br />
+<strong>🔵 支付宝</strong>（小企鹅在收金币哟~）
+</td>
+<td align="center" width="300">
+<img src="https://github.com/ctkqiang/ctkqiang/blob/main/assets/IMG_9859.JPG?raw=true" width="200" />
+<br />
+<strong>🟢 微信支付</strong>（小绿龙在收金币哟~）
+</td>
+</tr>
+</table>
+</div>
+</div>
+
+#### 国际用户
+
+<div align="center" style="margin: 40px 0">
+  <a href="https://qr.alipay.com/fkx19369scgxdrkv8mxso92" target="_blank">
+    <img src="https://img.shields.io/badge/Alipay-全球支付-00A1E9?style=flat-square&logo=alipay&logoColor=white&labelColor=008CD7">
+  </a>
+  
+  <a href="https://ko-fi.com/F1F5VCZJU" target="_blank">
+    <img src="https://img.shields.io/badge/Ko--fi-买杯咖啡-FF5E5B?style=flat-square&logo=ko-fi&logoColor=white">
+  </a>
+  
+  <a href="https://www.paypal.com/paypalme/ctkqiang" target="_blank">
+    <img src="https://img.shields.io/badge/PayPal-安全支付-00457C?style=flat-square&logo=paypal&logoColor=white">
+  </a>
+  
+  <a href="https://donate.stripe.com/00gg2nefu6TK1LqeUY" target="_blank">
+    <img src="https://img.shields.io/badge/Stripe-企业级支付-626CD9?style=flat-square&logo=stripe&logoColor=white">
+  </a>
+</div>
+
+---
+
+### 📌 开发者社交图谱
+
+#### 技术交流
+
+<div align="center" style="margin: 20px 0">
+  <a href="https://github.com/ctkqiang" target="_blank">
+    <img src="https://img.shields.io/badge/GitHub-开源仓库-181717?style=for-the-badge&logo=github">
+  </a>
+  
+  <a href="https://stackoverflow.com/users/10758321/%e9%92%9f%e6%99%ba%e5%bc%ba" target="_blank">
+    <img src="https://img.shields.io/badge/Stack_Overflow-技术问答-F58025?style=for-the-badge&logo=stackoverflow">
+  </a>
+  
+  <a href="https://www.linkedin.com/in/ctkqiang/" target="_blank">
+    <img src="https://img.shields.io/badge/LinkedIn-职业网络-0A66C2?style=for-the-badge&logo=linkedin">
+  </a>
+</div>
+
+#### 社交互动
+
+<div align="center" style="margin: 20px 0">
+  <a href="https://www.instagram.com/ctkqiang" target="_blank">
+    <img src="https://img.shields.io/badge/Instagram-生活瞬间-E4405F?style=for-the-badge&logo=instagram">
+  </a>
+  
+  <a href="https://twitch.tv/ctkqiang" target="_blank">
+    <img src="https://img.shields.io/badge/Twitch-技术直播-9146FF?style=for-the-badge&logo=twitch">
+  </a>
+  
+  <a href="https://github.com/ctkqiang/ctkqiang/blob/main/assets/IMG_9245.JPG?raw=true" target="_blank">
+    <img src="https://img.shields.io/badge/微信公众号-钟智强-07C160?style=for-the-badge&logo=wechat">
+  </a>
+</div>
