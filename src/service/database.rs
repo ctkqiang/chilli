@@ -206,7 +206,18 @@ pub async fn initialise_db() -> Result<DatabaseConnection, DbErr> {
         }
     };
 
-    let db = Database::connect(&base_url).await?;
+    let db = match Database::connect(&base_url).await {
+        Ok(db) => db,
+        Err(e) => {
+            utils::logger::log(
+                LogLevel::Warn,
+                &format!("远程数据库连接失败 ({}), 回退到 SQLite", e),
+            );
+            let _ = fs::create_dir_all(config::DATABASE_DIR);
+            return Database::connect("sqlite://./data/chilli.db?mode=rwc").await;
+        }
+    };
+
     let db_backend = db.get_database_backend();
 
     let create_sql = if db_backend == sea_orm::DatabaseBackend::MySql {
@@ -229,6 +240,7 @@ pub async fn initialise_db() -> Result<DatabaseConnection, DbErr> {
             crate::models::github_advisories::Entity,
             crate::models::users::Entity,
             crate::models::security::Entity,
+            crate::models::access_log::Entity,
         ]
     );
 
@@ -244,4 +256,41 @@ pub async fn initialise_db() -> Result<DatabaseConnection, DbErr> {
     );
 
     Ok(db)
+}
+
+pub async fn insert_access_log(
+    conn: &DatabaseConnection,
+    log: &crate::models::access_log::Model,
+) -> Result<(), DbErr> {
+    use crate::models::access_log;
+    use sea_orm::ActiveValue::Set;
+    use sea_orm::EntityTrait;
+
+    let active = access_log::ActiveModel {
+        src_ip: Set(log.src_ip.clone()),
+        dst_port: Set(log.dst_port),
+        process_name: Set(log.process_name.clone()),
+        pid: Set(log.pid),
+        timestamp: Set(log.timestamp),
+        ..Default::default()
+    };
+
+    access_log::Entity::insert(active).exec(conn).await?;
+    Ok(())
+}
+
+pub async fn get_recent_access_logs(
+    conn: &DatabaseConnection,
+    limit: u32,
+) -> Result<Vec<crate::models::access_log::Model>, DbErr> {
+    use crate::models::access_log;
+    use sea_orm::EntityTrait;
+    use sea_orm::QueryOrder;
+    use sea_orm::QuerySelect;
+
+    access_log::Entity::find()
+        .order_by_desc(access_log::Column::Timestamp)
+        .limit(Some(limit as u64))
+        .all(conn)
+        .await
 }

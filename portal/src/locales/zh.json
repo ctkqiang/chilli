@@ -4,6 +4,7 @@
     "processes": "进程管理",
     "security": "安全扫描",
     "docker": "Docker安全",
+    "ipAccess": "IP审计",
     "settings": "设置",
     "logout": "退出登录"
   },
@@ -128,6 +129,24 @@
     "viewLogs": "查看日志",
     "noContainers": "未找到容器",
     "noContainersTip": "Docker 可能未运行或没有创建容器"
+  },
+  "ipAccess": {
+    "title": "IP 访问审计",
+    "subtitle": "监控关键数据库端口的 IP 连接",
+    "totalRecords": "总记录数",
+    "uniqueProcesses": "独立进程",
+    "uniqueIps": "独立IP",
+    "limit": "数量限制",
+    "showing": "显示 {n} 条记录",
+    "loading": "正在加载 IP 访问日志...",
+    "srcIp": "源 IP",
+    "dstPort": "目标端口",
+    "processName": "进程名称",
+    "pid": "进程ID",
+    "timestamp": "时间戳",
+    "clickToCopy": "点击复制 IP",
+    "noData": "暂无访问日志",
+    "noDataTip": "IP 审计监控每 5 秒采集一次数据。请确保被监控的数据库服务正在运行。"
   },
   "common": {
     "loading": "加载中...",

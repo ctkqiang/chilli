@@ -4,6 +4,7 @@
     "processes": "Processes",
     "security": "Security Scan",
     "docker": "Docker Security",
+    "ipAccess": "IP Audit",
     "settings": "Settings",
     "logout": "Logout"
   },
@@ -128,6 +129,24 @@
     "viewLogs": "View Logs",
     "noContainers": "No containers found",
     "noContainersTip": "Docker may not be running or no containers created"
+  },
+  "ipAccess": {
+    "title": "IP Access Audit",
+    "subtitle": "Monitor IP connections to key database ports",
+    "totalRecords": "Total Records",
+    "uniqueProcesses": "Unique Processes",
+    "uniqueIps": "Unique IPs",
+    "limit": "Limit",
+    "showing": "Showing {n} records",
+    "loading": "Loading IP access logs...",
+    "srcIp": "Source IP",
+    "dstPort": "Target Port",
+    "processName": "Process",
+    "pid": "PID",
+    "timestamp": "Timestamp",
+    "clickToCopy": "Click to copy IP",
+    "noData": "No access logs found",
+    "noDataTip": "IP audit monitor will collect data every 5 seconds. Ensure monitored database services are running."
   },
   "common": {
     "loading": "Loading...",

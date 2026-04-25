@@ -28,6 +28,7 @@
 - **Docker 安全管理** - 监控容器运行状态和安全配置
 - **GitHub 安全公告同步** - 自动同步安全漏洞数据库
 - **系统遥测** - CPU、内存、运行时间等关键指标实时采集
+- **IP 访问审计** - 审计 MySQL/PostgreSQL/Redis 等关键数据库端口的活动连接，无需 eBPF
 - **多语言支持** - 支持中文和英文界面切换
 - **RESTful API** - 基于 Axum 框架的高性能 HTTP API
 - **多数据库支持** - SQLite / MySQL / PostgreSQL / QuestDB
@@ -70,6 +71,10 @@
 │  │  Docker Security │  │  GitHub Advisory Sync          │  │
 │  │  容器安全检测    │  │  安全公告同步引擎              │  │
 │  └──────────────────┘  └────────────────────────────────┘  │
+│  ┌──────────────────┐                                       │
+│  │  IP Audit Module │                                       │
+│  │  IP访问审计引擎  │                                       │
+│  └──────────────────┘                                       │
 └─────────────────────────────────────────────────────────────┘
                               │
 ┌─────────────────────────────────────────────────────────────┐
@@ -194,6 +199,14 @@ DATABASE_URL=sqlite://./data/chilli.db
 - 识别特权模式、敏感挂载等风险
 - 展示容器资源使用情况
 
+### IP 访问审计
+
+- 审计关键数据库端口（MySQL:3306 / PostgreSQL:5432 / Redis:6379）的活动连接
+- 自动关联连接与进程信息（PID + 进程名）
+- 基于 `/proc/net/tcp` 解析（Linux）或跨平台 `listeners` 库 fallback
+- 每 5 秒自动轮询采集，数据持久化至数据库
+- 提供 HTTP API 查询最近访问记录
+
 ---
 
 ## API 接口
@@ -225,6 +238,16 @@ DATABASE_URL=sqlite://./data/chilli.db
 | ---- | ---------------------- | ------------------ |
 | GET  | `/api/advisories`      | 获取同步的安全公告 |
 | POST | `/api/advisories/sync` | 手动触发同步       |
+
+### IP 审计
+
+| 方法 | 路径                    | 描述                        |
+| ---- | ----------------------- | --------------------------- |
+| GET  | `/api/ip-access-logs`   | 获取最近 IP 访问审计记录    |
+
+| 查询参数 | 类型 | 默认值 | 说明               |
+| -------- | ---- | ------ | ------------------ |
+| `limit`  | u32  | 50     | 返回记录最大数量   |
 
 ---
 
@@ -280,9 +303,22 @@ cargo tarpaulin --out Html
 chilli/
 ├── src/                    # 后端源码
 │   ├── core/              # 核心业务逻辑
+│   │   ├── ip_audit.rs         # IP 访问审计引擎
+│   │   ├── get_running_process.rs  # 进程监控
+│   │   └── get_security.rs     # 安全扫描
 │   ├── models/            # 数据模型
+│   │   ├── access_log.rs       # 访问日志实体
+│   │   ├── users.rs            # 用户实体
+│   │   └── security.rs         # 安全漏洞实体
 │   ├── routes/            # API 路由
+│   │   ├── ip_access.rs        # IP 审计 API
+│   │   ├── processes.rs        # 进程管理 API
+│   │   └── security.rs         # 安全扫描 API
+│   ├── service/           # 服务层
+│   │   └── database.rs         # 数据库服务
 │   ├── utils/             # 工具函数
+│   ├── ip_monitor.rs      # IP 审计后台监控任务
+│   ├── config.rs          # 配置管理
 │   └── main.rs            # 入口文件
 ├── portal/                # 前端源码
 │   ├── src/               # Vue 源码

@@ -38,6 +38,7 @@ const navLinks = [
   { path: '/processes', name: 'nav.processes', icon: '⚡' },
   { path: '/security', name: 'nav.security', icon: '🛡️' },
   { path: '/docker', name: 'nav.docker', icon: '🐳' },
+  { path: '/ip-access', name: 'nav.ipAccess', icon: '🌐' },
 ];
 
 const isActive = (path: string) => route.path === path;

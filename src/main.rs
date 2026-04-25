@@ -1,23 +1,47 @@
 mod config;
 mod core;
+mod ip_monitor;
 mod models;
 mod routes;
 mod service;
 mod utils;
 
-use sea_orm::DatabaseConnection;
 use crate::core::get_github_advisories::sync_github_advisories;
 use crate::models::log_level::LogLevel;
 use crate::service::database;
+use sea_orm::DatabaseConnection;
 
 use axum::extract::Extension;
 use axum::routing::{get, post};
 use axum::Router;
+use std::process::Command as StdCommand;
 use tower_http::cors::CorsLayer;
+use tower_http::services::{ServeDir, ServeFile};
 
 #[tokio::main]
 async fn main() {
     utils::logger::log(LogLevel::Info, "正在启动小辣椒服务...");
+
+    let portal_dir = config::get_portal_dir();
+    match StdCommand::new("bun")
+        .arg("run")
+        .arg("dev")
+        .current_dir(&portal_dir)
+        .spawn()
+    {
+        Ok(_child) => {
+            utils::logger::log(
+                LogLevel::Info,
+                &format!("Portal (Vite) 开发服务器 → http://localhost:3000"),
+            );
+        }
+        Err(e) => {
+            utils::logger::log(
+                LogLevel::Warn,
+                &format!("Portal 启动失败 (bun 未安装或路径错误): {}", e),
+            );
+        }
+    }
 
     let db = match database::initialise_db().await {
         Ok(connection) => {
@@ -31,7 +55,9 @@ async fn main() {
             panic!("服务启动失败，请检查数据库配置");
         }
     };
-    let app = routes(db.clone());
+
+    ip_monitor::start_ip_monitor(db.clone());
+    let app = routes(db.clone(), &portal_dir);
 
     match sync_github_advisories(&db).await {
         Ok(_) => {
@@ -58,7 +84,7 @@ async fn main() {
     utils::logger::log(
         LogLevel::Info,
         &format!(
-            "服务器监听在 http://{}:{}",
+            "API 服务器 → http://{}:{}",
             config::DEFAULT_SERVER_HOST,
             config::Port::default().core,
         ),
@@ -67,10 +93,12 @@ async fn main() {
     axum::serve(listener, app).await.unwrap();
 }
 
-fn routes(db: DatabaseConnection) -> Router {
+fn routes(db: DatabaseConnection, portal_dir: &str) -> Router {
+    let dist_dir = format!("{}/dist", portal_dir);
+
     Router::new()
-        .route("/", get(routes::system::get_index))
         .route("/health", get(routes::system::get_system_status))
+        .route("/api/info", get(routes::system::get_index))
         .route("/api/auth/register", post(routes::authentication::register))
         .route("/api/auth/login", post(routes::authentication::login))
         .route(
@@ -87,6 +115,14 @@ fn routes(db: DatabaseConnection) -> Router {
             "/api/security/docker",
             get(routes::security::scan_docker_security),
         )
+        .route(
+            "/api/ip-access-logs",
+            get(routes::ip_access::get_ip_access_logs),
+        )
         .layer(Extension(db))
         .layer(CorsLayer::permissive())
+        .fallback_service(
+            ServeDir::new(&dist_dir)
+                .not_found_service(ServeFile::new(format!("{}/index.html", dist_dir))),
+        )
 }
