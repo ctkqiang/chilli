@@ -1,77 +1,86 @@
-name: Chilli Multi-Platform Release (Rust)
+name: Chilli Multi-Platform Release
 
 on:
   push:
     tags: ["v*"]
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   release:
-    name: Build Chilli for ${{ matrix.os }}
+    name: Build for ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 30                     # 30 分钟内必须完成
     strategy:
+      fail-fast: false
       matrix:
         include:
           - os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
-            output: target/release/chilli
-            asset: chilli.deb
+            output: target/x86_64-unknown-linux-gnu/release/chilli
+            asset_name: chilli-linux-amd64
           - os: windows-latest
             target: x86_64-pc-windows-msvc
-            output: target/release/chilli.exe
-            asset: chilli.exe
+            output: target/x86_64-pc-windows-msvc/release/chilli.exe
+            asset_name: chilli-windows-amd64
           - os: macos-latest
             target: aarch64-apple-darwin
-            output: target/release/chilli
-            asset: chilli.pkg
+            output: target/aarch64-apple-darwin/release/chilli
+            asset_name: chilli-macos-arm64
+
+    permissions:
+      contents: write                # 允许上传 release asset
 
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install Rust Toolchain
+      - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.target }}
 
-      - name: Rust Cache
+      - name: Rust cache
         uses: swatinem/rust-cache@v2
 
-      - name: Build Binary
+      - name: Build binary
         run: cargo build --release --target ${{ matrix.target }}
 
-      # Linux: Wrap in .deb
-      - if: matrix.os == 'ubuntu-latest'
+      - name: Prepare asset (Linux .deb)
+        if: matrix.os == 'ubuntu-latest'
         run: |
           mkdir -p deb-root/usr/local/bin
-          cp target/${{ matrix.target }}/release/chilli deb-root/usr/local/bin/chilli
+          cp ${{ matrix.output }} deb-root/usr/local/bin/chilli
           mkdir -p deb-root/DEBIAN
-          echo -e "Package: chilli\nVersion: 1.0.0\nArchitecture: amd64\nMaintainer: john\nDescription: Chilli App" > deb-root/DEBIAN/control
+          cat > deb-root/DEBIAN/control <<EOF
+          Package: chilli
+          Version: ${GITHUB_REF#refs/tags/}
+          Architecture: amd64
+          Maintainer: john
+          Description: Chilli Telemetry Agent
+          EOF
           dpkg-deb --build deb-root chilli.deb
+          echo "ASSET_FILE=chilli.deb" >> $GITHUB_ENV
 
-      # Mac: Wrap in .pkg
-      - if: matrix.os == 'macos-latest'
+      - name: Prepare asset (macOS .pkg)
+        if: matrix.os == 'macos-latest'
         run: |
-          # Ensure binary is in a clean root for pkgbuild
-          mkdir -p bin-root/usr/local/bin
-          cp target/${{ matrix.target }}/release/chilli bin-root/usr/local/bin/chilli
-          pkgbuild --identifier com.chilli.app --install-location / --root bin-root chilli.pkg
+          mkdir -p pkg-root/usr/local/bin
+          cp ${{ matrix.output }} pkg-root/usr/local/bin/chilli
+          pkgbuild --identifier com.chilli.app --install-location / --root pkg-root chilli.pkg
+          echo "ASSET_FILE=chilli.pkg" >> $GITHUB_ENV
 
-      # Windows: Just rename for the asset step if needed
-      - if: matrix.os == 'windows-latest'
-        run: cp target/${{ matrix.target }}/release/chilli.exe ./chilli.exe
+      - name: Prepare asset (Windows .exe)
+        if: matrix.os == 'windows-latest'
+        run: |
+          cp ${{ matrix.output }} ./chilli.exe
+          echo "ASSET_FILE=chilli.exe" >> $GITHUB_ENV
         shell: bash
 
       - name: Upload to GitHub Release
         uses: softprops/action-gh-release@v1
         with:
-          files: ${{ matrix.asset }}
+          files: ${{ env.ASSET_FILE }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Upload to AtomGit
-        shell: bash
-        run: |
-          TAG_NAME=${GITHUB_REF#refs/tags/}
-          # Replace OWNER/REPO with your actual GitCode path
-          curl -X POST -H "Authorization: token ${{ secrets.ATOMGIT_TOKEN }}" \
-               -F "file=@${{ matrix.asset }}" \
-               "https://api.gitcode.com/v5/repos/YOUR_ORG/YOUR_REPO/releases/tags/$TAG_NAME/assets"
