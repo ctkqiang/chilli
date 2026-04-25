@@ -1,0 +1,76 @@
+name: Chilli Multi-Platform Release
+
+on:
+  push:
+    tags: ["v*"]
+
+jobs:
+  release:
+    name: Build Chilli for ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            goos: linux
+            goarch: amd64
+            output: chilli_linux
+            asset: chilli.deb
+          - os: windows-latest
+            goos: windows
+            goarch: amd64
+            output: chilli.exe
+            asset: chilli.exe
+          - os: macos-latest
+            goos: darwin
+            goarch: arm64
+            output: chilli_mac
+            asset: chilli.pkg
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+
+      - name: Build Binary
+        run: |
+          go build -ldflags="-s -w" -o ${{ matrix.output }} .
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+
+      # Linux: Wrap in .deb
+      - if: matrix.os == 'ubuntu-latest'
+        run: |
+          mkdir -p deb-root/usr/local/bin
+          cp chilli_linux deb-root/usr/local/bin/chilli
+          # Simple package creation
+          mkdir -p deb-root/DEBIAN
+          echo "Package: chilli\nVersion: 1.0.0\nArchitecture: amd64\nMaintainer: john\nDescription: Chilli App" > deb-root/DEBIAN/control
+          dpkg-deb --build deb-root chilli.deb
+
+      # Mac: Wrap in .pkg
+      - if: matrix.os == 'macos-latest'
+        run: |
+          pkgbuild --identifier com.chilli.app --install-location /usr/local/bin --root . --component-plist /dev/null chilli.pkg
+
+      - name: Upload to GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: ${{ matrix.asset }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+
+      - name: Upload to AtomGit
+        shell: bash
+        run: |
+          TAG_NAME=${GITHUB_REF#refs/tags/}
+          echo "Uploading ${{ matrix.asset }} to AtomGit for tag $TAG_NAME"
+          
+          curl -X POST -H "Authorization: token ${{ secrets.ATOMGIT_TOKEN }}" \
+               -F "file=@${{ matrix.asset }}" \
+               "https://api.gitcode.com/v5/repos/OWNER/REPO/releases/tags/$
