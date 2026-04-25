@@ -50,15 +50,17 @@ jobs:
       - name: Prepare asset (Linux .deb)
         if: matrix.os == 'ubuntu-latest'
         run: |
+          TAG="${{ github.ref_name }}"          # 例如 v1.0.2
+          VERSION="${TAG#v}"                    # 变成 1.0.2
           mkdir -p deb-root/usr/local/bin
           cp ${{ matrix.output }} deb-root/usr/local/bin/chilli
           mkdir -p deb-root/DEBIAN
           cat > deb-root/DEBIAN/control <<EOF
           Package: chilli
-          Version: ${GITHUB_REF#refs/tags/}
+          Version: ${VERSION}
           Architecture: amd64
-          Maintainer: john
-          Description: Chilli Telemetry Agent
+          Maintainer: 钟智强
+          Description: Chilli 遥测代理
           EOF
           dpkg-deb --build deb-root chilli.deb
           echo "ASSET_FILE=chilli.deb" >> $GITHUB_ENV
